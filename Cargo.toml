@@ -2,7 +2,21 @@
 name = "eight"
 version = "0.1.0"
 edition = "2024"
+default-run = "8"
+
+[lib]
+name = "eight"
+path = "src/lib.rs"
+doctest = false
+
+[[bin]]
+name = "8"
+path = "src/main.rs"
+test = false
 
 [dependencies]
+assembler = "0.10.1"
 libc = "0.2.189"
+
+[dev-dependencies]
 xxx = { git = "https://github.com/bleedsa/xxx" }

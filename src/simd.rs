@@ -33,4 +33,4 @@ macro_rules! impl_xmm_into {
     };
 }
 
-impl_xmm_into![I, F, C, *mut I, *mut F, *mut C,];
+impl_xmm_into![I, F, C, *mut I, *mut F, *mut C];

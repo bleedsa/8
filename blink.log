@@ -1,0 +1,23 @@
+I2026-09-12T14:22:10.946069:blink/syscall.c:5722:15656 missing syscall 0x14e
+I2026-09-12T14:22:24.805853:blink/blinkenlights.c:3298:15666 Tui
+I2026-09-12T14:22:24.805998:blink/blinkenlights.c:962:15666 loaded program target/debug/8
+110000000000-110000000fff  4096 100% r   /lib64/ld-linux-x86-64.so.2
+110000001000-11000002bfff  172k   3% rx  /lib64/ld-linux-x86-64.so.2
+11000002c000-110000035fff   40k  10% r   /lib64/ld-linux-x86-64.so.2
+110000036000-110000039fff   16k  25% rw  /lib64/ld-linux-x86-64.so.2
+110001000000-110001014fff   84k   5% r   target/debug/8
+110001015000-110001050fff  240k   2% rx  target/debug/8
+110001051000-110001055fff   20k  40% rw  target/debug/8
+4fffff800000-4fffffffffff 8192k   1% rw  [stack]
+I2026-09-12T14:22:24.806456:blink/blinkenlights.c:774:15666 TuiRejuvinate
+I2026-09-12T14:22:26.920553:blink/blinkenlights.c:3104:15666 ReadKeyboard interrupted
+I2026-09-12T14:22:29.355304:blink/blinkenlights.c:3104:15666 ReadKeyboard interrupted
+I2026-09-12T14:22:54.741598:blink/blinkenlights.c:3359:15666 TUI INT
+I2026-09-12T14:22:54.955254:blink/blinkenlights.c:3104:15666 ReadKeyboard interrupted
+I2026-09-12T14:22:54.955299:blink/blinkenlights.c:3359:15666 TUI INT
+I2026-09-12T14:23:08.352230:blink/syscall.c:5722:15666 missing syscall 0x14e
+I2026-09-12T14:23:23.587097:blink/blinkenlights.c:3359:15666 TUI INT
+I2026-09-12T14:23:24.480156:blink/blinkenlights.c:3377:15666 TUI EXIT
+I2026-09-12T14:23:24.480207:blink/blinkenlights.c:843:15666 TuiCleanup
+I2026-09-12T14:23:24.480223:blink/blinkenlights.c:835:15666 TtyRestore
+I2026-09-12T14:23:24.499052:blink/blinkenlights.c:835:0 TtyRestore
