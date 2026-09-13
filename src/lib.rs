@@ -7,7 +7,6 @@
 #![feature(const_convert)]
 #![feature(const_trait_impl)]
 
-use dtor::dtor;
 use std::{
     error::Error, fmt,
 };
@@ -81,9 +80,4 @@ impl Default for Pos {
 
 pub trait To<X> {
     fn to(self) -> X;
-}
-
-#[dtor(unsafe)]
-pub fn deinit() {
-    intern::deinit();
 }

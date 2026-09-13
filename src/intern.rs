@@ -1,5 +1,4 @@
 use dtor::dtor;
-
 use crate::pre::*;
 use std::{sync::Mutex, ptr, hint::unlikely, cell::UnsafeCell, mem::ManuallyDrop, marker::PhantomData};
 
@@ -148,6 +147,7 @@ pub mod pos {
     }
 }
 
+#[dtor(unsafe)]
 pub fn deinit() {
     unsafe {
         ManuallyDrop::drop(&mut pos::POS);
