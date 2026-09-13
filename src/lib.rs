@@ -1,13 +1,15 @@
 #![allow(non_snake_case)]
 #![allow(internal_features)]
 #![allow(nonstandard_style)]
+#![allow(static_mut_refs)]
 #![feature(repr_simd)]
 #![feature(likely_unlikely)]
-#![feature(core_intrinsics)]
+#![feature(const_convert)]
+#![feature(const_trait_impl)]
 
-use crate::{pre::*};
+use dtor::dtor;
 use std::{
-    error::Error, fmt, intrinsics::simd::simd_splat, mem::MaybeUninit as U,
+    error::Error, fmt,
 };
 
 pub mod M;
@@ -77,17 +79,11 @@ impl Default for Pos {
     }
 }
 
-#[unsafe(link_section = ".ctor")]
-pub static CTOR_INIT: extern "C" fn() = c_init;
-
-extern "C" fn c_init() {
-    intern::init();
-}
-
-pub fn init() {
-    c_init();
-}
-
 pub trait To<X> {
     fn to(self) -> X;
+}
+
+#[dtor(unsafe)]
+pub fn deinit() {
+    intern::deinit();
 }

@@ -1,6 +1,6 @@
 use crate::{intern::pos, pre::*};
 use std::{
-    cmp, fmt, intrinsics::simd::simd_splat, mem::{ManuallyDrop as MD, MaybeUninit as U}, ptr, rc::Rc,
+    cmp, fmt, mem::{ManuallyDrop as MD}, rc::Rc,
     slice,
 };
 
@@ -25,6 +25,7 @@ fn verb_t_valid_size() {
 
 #[test]
 fn memcpy_verb_t() {
+    use std::mem::MaybeUninit as U;
     let v = verb_t::new(Pos::default(), "+!@").unwrap();
     let mut r: U<verb_t> = U::uninit();
     unsafe {
@@ -258,7 +259,7 @@ pub struct M {
 
 impl M {
     pub fn pos(mut self, p: Pos) -> Self {
-        let ptr = pos().add(p);
+        let ptr = pos::add(p);
         self.pos = ptr;
         self
     }
@@ -305,16 +306,11 @@ impl fmt::Debug for M {
         macro_rules! atoms {
             [$($i:ident => $t:ty),* $(,)*] => {{
                 match self.ty {
-                    $(MTy::$i => return write!(f, "{}", To::<$t>::to(self))),*,
-                    _ => (),
+                    $(MTy::$i => write!(f, "{}", To::<$t>::to(self))),*,
                 }
             }};
         }
-        atoms![Int => I, Flt => F, Chr => C];
-
-        match self.ty {
-            _ => unreachable!(),
-        }
+        atoms![Int => I, Flt => F, Chr => C, Dyd => Dyd]
     }
 }
 
@@ -363,7 +359,7 @@ macro_rules! M_to_impls_simple {
             fn to(self) -> M {
                 M {
                     ty: MTy::$ty,
-                    pos: pos().add(Pos::default()),
+                    pos: pos::add(Pos::default()),
                     val: MVal {
                         $p: self,
                     }
@@ -403,7 +399,7 @@ macro_rules! M_to_impls_md {
             fn to(self) -> M {
                 M {
                     ty: MTy::$ty,
-                    pos: pos().add(Pos::default()),
+                    pos: pos::add(Pos::default()),
                     val: MVal {
                         $p: MD::new(self),
                     }
@@ -439,12 +435,9 @@ fn M_val_valid_size() {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::init;
 
     #[test]
     fn mk_atoms() {
-        init();
-
         let i: M = 12345.to();
         let i: I = i.to();
         assert_eq!(i, 12345);
@@ -460,8 +453,6 @@ mod test {
 
     #[test]
     fn mk_basic_oprs() -> R<()> {
-        init();
-
         let x: M = 5i32.to();
         let y: M = 10i32.to();
 
@@ -482,8 +473,6 @@ mod test {
 
     #[test]
     fn mk_nested_dyds() -> R<()> {
-        init();
-
         let o: M = V!("+", 15i32, 20i32).to();
 
         /* nest & check */

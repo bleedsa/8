@@ -1,4 +1,4 @@
-use eight::{M::M, V, intern, pre::*};
+use eight::{M::M, V, pre::*};
 
 fn main() -> R<()> {
     #[cfg(miri)]
