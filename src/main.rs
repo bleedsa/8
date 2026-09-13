@@ -1,12 +1,14 @@
-use eight::asm::mmap_exec;
+use eight::{M::M, V, intern, pre::*};
 
-fn main() {
-    unsafe {
-        let map = mmap_exec(4096);
+fn main() -> R<()> {
+    #[cfg(miri)]
+    eight::init();
 
-        for i in 0..4096 {
-            *map.add(i) = i as u8;
-            assert_eq!(*map.add(i), i as u8);
-        }
-    }
+    let o: M = V!("+", 1i32, 1i32).to();
+    println!("{o:?}");
+
+    let n = V!(".", &o, 1i32);
+    println!("{n}");
+
+    Ok(())
 }

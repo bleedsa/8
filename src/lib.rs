@@ -5,7 +5,10 @@
 #![feature(likely_unlikely)]
 #![feature(core_intrinsics)]
 
-use std::{error::Error, fmt};
+use crate::{M::val_t, pre::*};
+use std::{
+    error::Error, fmt, intrinsics::simd::simd_splat, mem::MaybeUninit as U,
+};
 
 pub mod M;
 pub mod asm;
@@ -18,7 +21,7 @@ pub mod pre {
     pub use crate::{
         C, E, F, I,
         M::err::MErr,
-        Pos, R, fatal,
+        Pos, R, To, fatal,
         mem::memcpy,
         simd::{xmm_t, ymm_t},
     };
@@ -74,9 +77,50 @@ impl Default for Pos {
     }
 }
 
-#[unsafe(link_section = ".text.ctor")]
-static CTOR_INIT: extern "C" fn() = init;
+#[unsafe(link_section = ".ctor")]
+pub static CTOR_INIT: extern "C" fn() = c_init;
 
-extern "C" fn init() {
+extern "C" fn c_init() {
     intern::init();
 }
+
+pub fn init() {
+    c_init();
+}
+
+pub trait To<X> {
+    fn to(self) -> X;
+}
+
+macro_rules! _impl_to {
+    [$I:ty => $($T:ty),* $(,)*] => {
+        $(
+            impl To<$I> for $T {
+                #[inline(always)]
+                fn to(self) -> $I {
+                    debug_assert!(size_of::<$I>() >= size_of::<$T>());
+                    unsafe {
+                        let mut r: $I = simd_splat(0u8);
+                        memcpy(&raw mut r, &raw const self, size_of::<$T>());
+                        r
+                    }
+                }
+            }
+
+            impl To<$T> for $I {
+                #[inline(always)]
+                fn to(self) -> $T {
+                    #[cfg(test)]
+                    debug_assert!(size_of::<$T>() <= size_of::<$I>());
+                    let mut r: U<$T> = U::uninit();
+                    unsafe {
+                        memcpy(&raw mut r, &raw const self, size_of::<$T>());
+                        r.assume_init()
+                    }
+                }
+            }
+        )*
+    };
+}
+
+_impl_to![val_t => I, F, C, *mut I, *mut F, *mut C];

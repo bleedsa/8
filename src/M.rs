@@ -1,89 +1,70 @@
 use crate::{intern::pos, pre::*};
 use std::{
-    cmp, fmt, intrinsics::simd::simd_splat, mem::MaybeUninit as U, rc::Rc,
+    cmp, fmt, intrinsics::simd::simd_splat, mem::MaybeUninit as U, ptr, rc::Rc,
     slice,
 };
 
 pub mod err;
 
-pub trait To<X> {
-    fn to(self) -> X;
+#[test]
+fn serialize_sizes() {
+    assert!(
+        size_of::<verb_t>() + size_of::<*const (M, M)>() <= size_of::<val_t>()
+    );
 }
-
-macro_rules! _impl_to {
-    [$I:ty => $($T:ty),* $(,)*] => {
-        $(
-            impl To<$I> for $T {
-                #[inline(always)]
-                fn to(self) -> $I {
-                    debug_assert!(size_of::<$I>() >= size_of::<$T>());
-                    unsafe {
-                        let mut r: $I = simd_splat(0u8);
-                        memcpy(&raw mut r, &raw const self, size_of::<$T>());
-                        r
-                    }
-                }
-            }
-
-            impl To<$T> for $I {
-                #[inline(always)]
-                fn to(self) -> $T {
-                    #[cfg(test)]
-                    debug_assert!(size_of::<$T>() <= size_of::<$I>());
-                    let mut r: U<$T> = U::uninit();
-                    unsafe {
-                        memcpy(&raw mut r, &raw const self, size_of::<$T>());
-                        r.assume_init()
-                    }
-                }
-            }
-        )*
-    };
-}
-
-_impl_to![val_t => I, F, C, *mut I, *mut F, *mut C];
 
 impl To<val_t> for Dyd {
     fn to(self) -> val_t {
         unsafe {
             let mut r: val_t = simd_splat(0u8);
-            memcpy(
-                &raw mut r,
-                self.v.vec().as_ptr(),
-                size_of::<[u8; VERB_LEN]>(),
-            );
+            let mut ptr = (&raw mut r).cast::<u8>();
+
+            /* cpy the verb */
+            const VZ: usize = size_of::<verb_t>();
+            let v = &raw const self.v;
+
+            /* cpy */
+            memcpy(ptr, v, VZ);
+            ptr = ptr.add(VZ);
+
+            /* args */
+            let a = Rc::into_raw(self.a);
+            memcpy(ptr, &raw const a, size_of::<*const (M, M)>());
+
+            println!("{:?}", unsafe { (*a).clone() });
+
             r
         }
     }
 }
 
 impl To<Dyd> for val_t {
-    fn to(self) -> Dyd {
+    fn to(mut self) -> Dyd {
         /* raw self */
-        let mut ptr = &raw const self;
+        let mut bs = (&raw mut self).cast::<u8>();
 
         unsafe {
             /* copy verb name */
-            const VZ: usize = size_of::<verb_t>();
-            let mut v: U<verb_t> = U::uninit();
-            let v = v.as_mut_ptr();
-            memcpy(v.cast::<verb_t>(), ptr, VZ);
-            ptr = ptr.add(VZ);
-            let v = *v.cast::<verb_t>();
+            let v = {
+                const VZ: usize = size_of::<verb_t>();
 
-            /* arg size */
-            const AZ: usize = size_of::<*const M>();
+                /* uninit */
+                let mut v: U<verb_t> = U::uninit();
+                let v = v.as_mut_ptr().cast::<verb_t>();
 
-            /* x */
-            let x: Rc<M> = Rc::from_raw(ptr as *const M);
-            ptr = ptr.add(AZ);
+                *v = *(bs as *const verb_t); /* copy */
+                bs = bs.add(VZ); /* inc */
+                *v /* ret */
+            };
 
-            /* y */
-            let y: Rc<M> = Rc::from_raw(ptr as *const M);
+            /* args */
+            let mut raw: *const (M, M) = ptr::null();
+            memcpy(&raw mut raw, bs, size_of::<*const (M, M)>());
+            let a: Rc<(M, M)> = Rc::from_raw(raw);
 
-            let r = Dyd { v, x, y };
+            println!("{a:?}");
 
-            r
+            Dyd { v, a }
         }
     }
 }
@@ -96,13 +77,23 @@ pub const VERB_LEN: usize = 4;
  * NOTE to skylar: does NOT include adverbs.
  * TODO: adverb_t
  */
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug)]
 pub struct verb_t(pub [u8; VERB_LEN], pub u32);
 
 #[test]
 fn verb_t_valid_size() {
     println!("Z: {}", size_of::<verb_t>());
     assert!(size_of::<verb_t>() <= 8);
+}
+
+#[test]
+fn memcpy_verb_t() {
+    let v = verb_t::new(Pos::default(), "+!@").unwrap();
+    let mut r: U<verb_t> = U::uninit();
+    unsafe {
+        memcpy(r.as_mut_ptr(), &raw const v, size_of::<verb_t>());
+        assert_eq!(v, r.assume_init());
+    }
 }
 
 pub static VERB_CHRS: &str = "!@#$%^&*_+-=~:<>?,|.";
@@ -116,7 +107,7 @@ impl verb_t {
         }
 
         /* make a buffer */
-        let mut a = [0x43; VERB_LEN];
+        let mut a = [0u8; VERB_LEN];
 
         /* get the length of the str <= 4 */
         let L = cmp::min(VERB_LEN, s.len());
@@ -129,9 +120,23 @@ impl verb_t {
                 s.bytes().collect::<Vec<_>>().as_ptr(),
                 L as usize,
             );
-        }
 
-        Ok(Self(a, L as u32))
+            Ok(Self(a, L as u32))
+        }
+    }
+
+    #[inline]
+    pub fn v(&self) -> &str {
+        unsafe {
+            let v = self.vec().as_ptr() as *const u8;
+            let s = slice::from_raw_parts(v, self.len());
+            if let Ok(x) = str::from_utf8(s) {
+                let _ = v;
+                return x;
+            } else {
+                unreachable!()
+            }
+        }
     }
 
     /** the actual char buffer */
@@ -144,9 +149,34 @@ impl verb_t {
     pub fn len(&self) -> usize {
         self.1 as usize
     }
+
+    #[inline(always)]
+    pub fn as_ptr(&self) -> *const u8 {
+        self.0.as_ptr().cast::<u8>()
+    }
 }
 
-type VerbArg<T> = Rc<T>;
+impl PartialEq for verb_t {
+    fn eq(&self, y: &Self) -> bool {
+        let L = self.len();
+
+        /* check lens */
+        if L != y.len() {
+            return false;
+        }
+
+        let (x, y) = (self.as_ptr(), y.as_ptr());
+        for i in 0..L {
+            unsafe {
+                if *x.add(i) != *y.add(i) {
+                    return false;
+                }
+            }
+        }
+
+        true
+    }
+}
 
 /**
  * a dyadic verb. reference counted.
@@ -158,21 +188,28 @@ type VerbArg<T> = Rc<T>;
 pub struct Dyd {
     /** str, len */
     pub v: verb_t,
-    pub x: VerbArg<M>,
-    pub y: VerbArg<M>,
+    pub a: Rc<(M, M)>,
 }
 
 #[macro_export]
 macro_rules! V {
     ($v:expr, $x:expr, $y:expr) => {{
+        use std::rc::Rc;
+        use $crate::{
+            M::{Dyd, M, verb_t},
+            To,
+        };
+
+        let x = To::<M>::to($x);
+        let y = To::<M>::to($y);
+
         /* make the verb array */
-        let v = verb_t::new(*$x.pos, $v)?;
+        let v = verb_t::new(*x.pos, $v)?;
 
         /* alloc x&y */
-        let x = Rc::new($x.clone());
-        let y = Rc::new($y.clone());
+        let a = Rc::new((x, y));
 
-        Dyd { v, x, y }
+        Dyd { v, a }
     }};
 }
 
@@ -182,7 +219,7 @@ impl Dyd {
     where
         &'a M: To<X>,
     {
-        (&*self.x).to()
+        (&(*self.a).0).to()
     }
 
     #[inline(always)]
@@ -190,31 +227,22 @@ impl Dyd {
     where
         &'a M: To<X>,
     {
-        (&*self.y).to()
+        (&(*self.a).1).to()
     }
 
     #[inline(always)]
     pub fn xty(&self) -> MTy {
-        (&*self.x).ty
+        (&(*self.a).0).ty
     }
 
     #[inline(always)]
     pub fn yty(&self) -> MTy {
-        (&*self.y).ty
+        (&(*self.a).1).ty
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn v(&self) -> &str {
-        unsafe {
-            let v = self.v.vec();
-            let s = slice::from_raw_parts(v.as_ptr(), self.v_len());
-            if let Ok(x) = str::from_utf8(s) {
-                let _ = v;
-                return x;
-            } else {
-                unreachable!()
-            }
-        }
+        self.v.v()
     }
 
     #[inline(always)]
@@ -232,6 +260,7 @@ impl fmt::Debug for Dyd {
             ($m:ident => $f:ident) => {{
                 match self.$m() {
                     MTy::Int => write!(f, "{}", self.$f::<I>())?,
+                    MTy::Flt => write!(f, "{}", self.$f::<F>())?,
                     MTy::Dyd => write!(f, "{}", self.$f::<Dyd>())?,
                     t => fatal!("invalid MTy in Debug::fmt(): {t:?}"),
                 }
@@ -261,7 +290,7 @@ impl PartialEq<Dyd> for Dyd {
             return false;
         }
 
-        self.x == y.x && self.y == y.y
+        self.a.0 == y.a.0 && self.a.1 == y.a.1
     }
 }
 
@@ -299,7 +328,7 @@ impl Drop for M {
     fn drop(&mut self) {
         match self.ty {
             MTy::Dyd => {
-                let d: Dyd = self.val.to();
+                let _: Dyd = self.val.to();
             }
             _ => (),
         }
@@ -320,6 +349,11 @@ impl fmt::Debug for M {
             }};
         }
         atoms![Int => I, Flt => F, Chr => C];
+
+        match self.ty {
+            MTy::Dyd => return write!(f, "{:?}", To::<Dyd>::to(self.val)),
+            _ => ()
+        }
 
         match self.ty {
             _ => unreachable!(),
@@ -393,6 +427,12 @@ impl To<M> for &M {
     }
 }
 
+impl To<M> for M {
+    fn to(self) -> M {
+        self
+    }
+}
+
 #[test]
 fn M_val_valid_size() {
     println!("Zs: {} >= {}", size_of::<val_t>(), size_of::<Dyd>());
@@ -428,13 +468,13 @@ mod test {
         let x: M = 5i32.to();
         let y: M = 10i32.to();
 
-        let o = V!("+", x, y);
+        let o = V!("+", &x, &y);
         println!("{o:?}");
         assert!(o.v() == "+");
         assert!(5i32 == o.x());
         assert!(10i32 == o.y());
 
-        let o = V!("=====", x, y);
+        let o = V!("=====", &x, &y);
         println!("{o:?}");
         assert!(o.v() == "====");
         assert!(5i32 == o.x());
@@ -444,19 +484,17 @@ mod test {
     }
 
     #[test]
-    fn mk_nest_dyds() -> R<()> {
+    fn mk_nested_dyds() -> R<()> {
         init();
 
-        let x: M = 15i32.to();
-        let y: M = 20i32.to();
-        let o: M = V!("+", x, y).to();
+        let o: M = V!("+", 15i32, 20i32).to();
 
         /* nest & check */
-        let n = V!("@", o, y);
+        let n = V!("@", &o, 20i32);
         println!("{n:?}");
         assert!(n.v() == "@");
         assert!(o == n.x());
-        assert!(y == n.y());
+        assert!(20i32 == n.y());
 
         Ok(())
     }
