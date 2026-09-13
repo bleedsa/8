@@ -9,6 +9,7 @@ use std::{error::Error, fmt};
 
 pub mod M;
 pub mod asm;
+pub mod intern;
 pub mod mem;
 pub mod simd;
 pub mod vm;
@@ -17,7 +18,7 @@ pub mod pre {
     pub use crate::{
         C, E, F, I,
         M::err::MErr,
-        Pos, R,
+        Pos, R, fatal,
         mem::memcpy,
         simd::{xmm_t, ymm_t},
     };
@@ -33,6 +34,14 @@ pub type R<T> = Result<T, Box<dyn Error>>;
 #[macro_export]
 macro_rules! E {
     ($e:expr) => {{ Err(Box::new($e)) }};
+}
+
+#[macro_export]
+macro_rules! fatal {
+    ($($x:tt)*) => {{
+        eprintln!("FATAL ERROR: {}", format!($($x)*));
+        std::process::exit(-1);
+    }};
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -63,4 +72,11 @@ impl Default for Pos {
     fn default() -> Self {
         Self(0, 0, 0)
     }
+}
+
+#[unsafe(link_section = ".text.ctor")]
+static CTOR_INIT: extern "C" fn() = init;
+
+extern "C" fn init() {
+    intern::init();
 }

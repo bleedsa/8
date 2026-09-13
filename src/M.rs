@@ -1,5 +1,8 @@
-use crate::pre::*;
-use std::{cmp, fmt, hint::unlikely, mem::MaybeUninit as U, ptr, slice, rc::Rc, borrow::Cow, intrinsics::simd::simd_splat};
+use crate::{intern::pos, pre::*};
+use std::{
+    cmp, fmt, intrinsics::simd::simd_splat, mem::MaybeUninit as U, rc::Rc,
+    slice,
+};
 
 pub mod err;
 
@@ -38,7 +41,52 @@ macro_rules! _impl_to {
     };
 }
 
-_impl_to![val_t => I, F, C, *mut I, *mut F, *mut C, Dyd];
+_impl_to![val_t => I, F, C, *mut I, *mut F, *mut C];
+
+impl To<val_t> for Dyd {
+    fn to(self) -> val_t {
+        unsafe {
+            let mut r: val_t = simd_splat(0u8);
+            memcpy(
+                &raw mut r,
+                self.v.vec().as_ptr(),
+                size_of::<[u8; VERB_LEN]>(),
+            );
+            r
+        }
+    }
+}
+
+impl To<Dyd> for val_t {
+    fn to(self) -> Dyd {
+        /* raw self */
+        let mut ptr = &raw const self;
+
+        unsafe {
+            /* copy verb name */
+            const VZ: usize = size_of::<verb_t>();
+            let mut v: U<verb_t> = U::uninit();
+            let v = v.as_mut_ptr();
+            memcpy(v.cast::<verb_t>(), ptr, VZ);
+            ptr = ptr.add(VZ);
+            let v = *v.cast::<verb_t>();
+
+            /* arg size */
+            const AZ: usize = size_of::<*const M>();
+
+            /* x */
+            let x: Rc<M> = Rc::from_raw(ptr as *const M);
+            ptr = ptr.add(AZ);
+
+            /* y */
+            let y: Rc<M> = Rc::from_raw(ptr as *const M);
+
+            let r = Dyd { v, x, y };
+
+            r
+        }
+    }
+}
 
 pub const VERB_LEN: usize = 4;
 
@@ -76,7 +124,11 @@ impl verb_t {
 
         /* perform the copy */
         unsafe {
-            memcpy(a.as_mut_ptr(), s.bytes().collect::<Vec<_>>().as_ptr(), L as usize);
+            memcpy(
+                a.as_mut_ptr(),
+                s.bytes().collect::<Vec<_>>().as_ptr(),
+                L as usize,
+            );
         }
 
         Ok(Self(a, L as u32))
@@ -94,7 +146,7 @@ impl verb_t {
     }
 }
 
-type VerbArg<T> = Rc<Box<T>>;
+type VerbArg<T> = Rc<T>;
 
 /**
  * a dyadic verb. reference counted.
@@ -102,6 +154,7 @@ type VerbArg<T> = Rc<Box<T>>;
  * `x` & `y` are alloc'd raw ptrs.
  * `v` is the verb str (max 4 chars).
  */
+#[derive(Clone)]
 pub struct Dyd {
     /** str, len */
     pub v: verb_t,
@@ -112,16 +165,14 @@ pub struct Dyd {
 #[macro_export]
 macro_rules! V {
     ($v:expr, $x:expr, $y:expr) => {{
-        unsafe {
-            /* make the verb array */
-            let v = verb_t::new((&$x).pos, $v)?;
+        /* make the verb array */
+        let v = verb_t::new(*$x.pos, $v)?;
 
-            /* alloc x&y */
-            let x = Rc::new(Box::new($x.clone()));
-            let y = Rc::new(Box::new($y.clone()));
+        /* alloc x&y */
+        let x = Rc::new($x.clone());
+        let y = Rc::new($y.clone());
 
-            Dyd { v, x, y }
-        }
+        Dyd { v, x, y }
     }};
 }
 
@@ -131,7 +182,7 @@ impl Dyd {
     where
         &'a M: To<X>,
     {
-        unsafe { (&**self.x).to() }
+        (&*self.x).to()
     }
 
     #[inline(always)]
@@ -139,17 +190,17 @@ impl Dyd {
     where
         &'a M: To<X>,
     {
-        unsafe { (&**self.y).to() }
+        (&*self.y).to()
     }
 
     #[inline(always)]
     pub fn xty(&self) -> MTy {
-        unsafe { (&**self.x).ty }
+        (&*self.x).ty
     }
 
     #[inline(always)]
     pub fn yty(&self) -> MTy {
-        unsafe { (&**self.y).ty }
+        (&*self.y).ty
     }
 
     #[inline]
@@ -174,15 +225,30 @@ impl Dyd {
 
 impl fmt::Debug for Dyd {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match (self.yty(), self.xty()) {
-            (MTy::Int, MTy::Int) => {
-                let v = self.v();
-                let x = self.x::<I>();
-                let y = self.y::<I>();
-                write!(f, "({v} {x:?}, {y:?})")
-            }
-            _ => todo!(),
+        /* v */
+        write!(f, "({} ", self.v())?;
+
+        macro_rules! fmt_arg {
+            ($m:ident => $f:ident) => {{
+                match self.$m() {
+                    MTy::Int => write!(f, "{}", self.$f::<I>())?,
+                    MTy::Dyd => write!(f, "{}", self.$f::<Dyd>())?,
+                    t => fatal!("invalid MTy in Debug::fmt(): {t:?}"),
+                }
+            }};
         }
+
+        fmt_arg!(xty=>x); /* x */
+        write!(f, " ")?;
+        fmt_arg!(yty=>y); /* y */
+
+        write!(f, ")")
+    }
+}
+
+impl fmt::Display for Dyd {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
     }
 }
 
@@ -195,7 +261,7 @@ impl PartialEq<Dyd> for Dyd {
             return false;
         }
 
-        todo!()
+        self.x == y.x && self.y == y.y
     }
 }
 
@@ -217,14 +283,26 @@ pub enum MTy {
 #[derive(Clone)]
 pub struct M {
     pub ty: MTy,
-    pub pos: Pos,
+    pub pos: &'static Pos,
     pub val: val_t,
 }
 
 impl M {
-    pub fn pos(mut self, pos: Pos) -> Self {
-        self.pos = pos;
+    pub fn pos(mut self, p: Pos) -> Self {
+        let ptr = pos().add(p);
+        self.pos = ptr;
         self
+    }
+}
+
+impl Drop for M {
+    fn drop(&mut self) {
+        match self.ty {
+            MTy::Dyd => {
+                let d: Dyd = self.val.to();
+            }
+            _ => (),
+        }
     }
 }
 
@@ -278,7 +356,7 @@ macro_rules! M_impls {
                 #[inline(always)]
                 fn to(self) -> M {
                     M {
-                        pos: Pos::default(),
+                        pos: pos().add(Pos::default()),
                         ty: MTy::$ty,
                         val: self.to(),
                     }
@@ -309,6 +387,12 @@ M_impls![
     Dyd => Dyd,
 ];
 
+impl To<M> for &M {
+    fn to(self) -> M {
+        self.clone()
+    }
+}
+
 #[test]
 fn M_val_valid_size() {
     println!("Zs: {} >= {}", size_of::<val_t>(), size_of::<Dyd>());
@@ -318,9 +402,12 @@ fn M_val_valid_size() {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::init;
 
     #[test]
     fn mk_atoms() {
+        init();
+
         let i: M = 12345.to();
         let i: I = i.to();
         assert_eq!(i, 12345);
@@ -335,7 +422,9 @@ mod test {
     }
 
     #[test]
-    fn mk_oprs() -> R<()> {
+    fn mk_basic_oprs() -> R<()> {
+        init();
+
         let x: M = 5i32.to();
         let y: M = 10i32.to();
 
@@ -347,10 +436,27 @@ mod test {
 
         let o = V!("=====", x, y);
         println!("{o:?}");
-        println!("{}", o.v());
         assert!(o.v() == "====");
         assert!(5i32 == o.x());
         assert!(10i32 == o.y());
+
+        Ok(())
+    }
+
+    #[test]
+    fn mk_nest_dyds() -> R<()> {
+        init();
+
+        let x: M = 15i32.to();
+        let y: M = 20i32.to();
+        let o: M = V!("+", x, y).to();
+
+        /* nest & check */
+        let n = V!("@", o, y);
+        println!("{n:?}");
+        assert!(n.v() == "@");
+        assert!(o == n.x());
+        assert!(y == n.y());
 
         Ok(())
     }

@@ -16,5 +16,6 @@ test = false
 
 [dependencies]
 assembler = "0.10.1"
+ctor = "1.0.13"
 libc = "0.2.189"
 xxx = { git = "https://github.com/bleedsa/xxx" }
