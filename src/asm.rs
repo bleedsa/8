@@ -3,8 +3,8 @@ use libc::{
     MAP_ANONYMOUS, MAP_PRIVATE, PROT_EXEC, PROT_READ, PROT_WRITE, mmap, size_t,
 };
 
-use std::{mem::transmute, ptr::{self, NonNull}};
-use crate::{pre::*, asm::err::pre::*, intern};
+use std::{ptr::{self, NonNull}};
+use crate::{pre::*, asm::err::pre::*, intern, M::M};
 
 pub mod err;
 
@@ -80,7 +80,7 @@ impl Asm {
         Ok(())
     }
 
-    pub fn emit_fun0<N, S>(&mut self, n: N, s: S) -> R<()>
+    pub fn emit_fun<const A: usize, N, S>(&mut self, n: N, s: S) -> R<()>
     where
         N: AsRef<str>,
         S: AsRef<str>,
@@ -90,7 +90,7 @@ impl Asm {
         let s = s.as_ref();
 
         /* add to function stack */
-        self.funs.push(Fun::new::<0, _>(n));
+        self.funs.push(Fun::new::<A, _>(n));
 
         /* emit */
         unS!(self.asm.label(n));
@@ -123,6 +123,22 @@ pub struct Exe{
     pub res: AssemblyResult,
 }
 
+#[macro_export]
+macro_rules! fun {
+    ($exe:expr, fn($($a:ty),*$(,)*) -> $r:ty = $n:expr) => {{
+        use std::mem::transmute;
+
+        /* get label address offset */
+        let off = $exe.label($n)?;
+        /* get function pointer based on offset */
+        let ptr = $exe.map.as_ptr().add(off);
+        /* transmute the pointer into a function */
+        let fun: extern "C" fn($($a),*) -> $r = transmute(ptr);
+
+        fun
+    }};
+}
+
 impl Exe {
     #[inline(always)]
     pub fn label<N>(&self, n: N) -> R<usize>
@@ -135,15 +151,13 @@ impl Exe {
             .ok_or(AsmErr::LabelNotFound(n.to_string()))? as usize)
     }
 
-    pub fn fun0<N, T>(&self, n: N) -> R<extern "C" fn() -> T> 
+    #[inline(always)]
+    pub unsafe fn fun0<N, T>(&self, n: N) -> R<extern "C" fn() -> T> 
     where
         N: AsRef<str>
     {
         unsafe {
-            let off = self.label(n)?;
-            let ptr = self.map.as_ptr().add(off);
-            let fun: extern "C" fn() -> T = transmute(ptr);
-            Ok(fun)
+            Ok(fun!(self, fn() -> T = n.as_ref()))
         }
     }
 }

@@ -20,7 +20,7 @@ pub mod vm;
 
 pub mod pre {
     pub use crate::{
-        C, E, F, I,
+        C, E, F, I, fun,
         M::err::MErr,
         Pos, R, To, fatal,
         mem::memcpy,
