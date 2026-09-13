@@ -1,5 +1,9 @@
 use std::fmt;
 
+pub mod pre {
+    pub use crate::{reS, unS, asm::err::AsmErr};
+}
+
 pub enum AsmErr {
     Assembler(String),
     LabelNotFound(String),

@@ -4,11 +4,12 @@ use libc::{
 };
 
 use std::{mem::transmute, ptr::{self, NonNull}};
-use crate::{pre::*, asm::err::AsmErr, reS, unS};
+use crate::{pre::*, asm::err::pre::*, intern};
 
 pub mod err;
 
 #[cfg(test)]
+#[cfg(not(miri))]
 pub mod nomiri;
 
 pub unsafe fn mmap_exec(z: usize) -> NonNull<u8> {
@@ -40,14 +41,34 @@ fn basic_mmap() {
     }
 }
 
+pub struct Fun {
+    pub name: &'static str,
+    pub args: usize,
+}
+
+impl Fun {
+    #[inline(always)]
+    pub fn new<const A: usize, N>(n: N) -> Self
+    where
+        N: ToString,
+    {
+        Self {
+            name: intern::str::add(n.to_string()),
+            args: A,
+        }
+    }
+}
+
 pub struct Asm {
     pub asm: Assembler,
+    pub funs: Vec<Fun>,
 }
 
 impl Asm {
     pub fn new() -> Self {
         Self {
             asm: Assembler::new(Arch::X86_64),
+            funs: Vec::new(),
         }
     }
 
@@ -59,21 +80,30 @@ impl Asm {
         Ok(())
     }
 
-    pub fn emit_fun<N, S>(&mut self, n: N, s: S) -> R<()>
+    pub fn emit_fun0<N, S>(&mut self, n: N, s: S) -> R<()>
     where
         N: AsRef<str>,
         S: AsRef<str>,
     {
-        unS!(self.asm.label(n.as_ref()));
-        unS!(self.asm.emit(s.as_ref()));
+        /* into */
+        let n = n.as_ref();
+        let s = s.as_ref();
+
+        /* add to function stack */
+        self.funs.push(Fun::new::<0, _>(n));
+
+        /* emit */
+        unS!(self.asm.label(n));
+        unS!(self.asm.emit(s));
 
         Ok(())
     }
 
     pub fn exe(self) -> R<Exe> {
-        let res = self.asm.finish().map_err(|e| AsmErr::Assembler(format!("{e}")))?;
-        let bs = res.bytes();    /* get the bytes */
-        let bL = bs.len();       /* number of bytes */
+        /* grab the assembler results */
+        let res = unS!(self.asm.finish());
+        let bs = res.bytes();               /* get the bytes */
+        let bL = bs.len();                  /* number of bytes */
         let map = unsafe { mmap_exec(bL) }; /* make an executable mem page */
 
         /* copy the asm into the page */
@@ -88,7 +118,7 @@ impl Asm {
     }
 }
 
-pub struct Exe {
+pub struct Exe{
     pub map: NonNull<u8>,
     pub res: AssemblyResult,
 }

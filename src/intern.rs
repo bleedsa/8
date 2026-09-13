@@ -36,7 +36,6 @@ impl<'a, X> Intern<'a, X> {
     }
 
     fn alloc(&mut self) {
-        println!("alloc()");
         self.cap = 8;
         unsafe {
             self.ptr = xxx::new(self.cap).expect("Intern::alloc(): failed to alloc");
@@ -134,22 +133,32 @@ impl<X> Drop for SIntern<X> {
 unsafe impl<X> Send for SIntern<X> {}
 unsafe impl<X> Sync for SIntern<X> {}
 
+macro_rules! SIntern_mods {
+    [$(static $m:ident::$n:ident: $T:ty;)*] => {
+        $(
+            pub mod $m {
+                use super::*;
 
-pub mod pos {
-    use super::*;
+                pub static mut $n: ManuallyDrop<SIntern<$T>> = ManuallyDrop::new(SIntern::new());
 
-    pub static mut POS: ManuallyDrop<SIntern<Pos>> = ManuallyDrop::new(SIntern::new());
+                pub fn add(x: $T) -> &'static $T {
+                    unsafe {
+                        (&mut *&raw mut $n).add(x)
+                    }
+                }
+            }
+        )*
 
-    pub fn add(x: Pos) -> &'static Pos {
-        unsafe {
-            (&mut *&raw mut POS).add(x)
+        #[dtor(unsafe)]
+        pub fn deinit() {
+            unsafe {
+                $(ManuallyDrop::drop(&mut $m::$n);)*
+            }
         }
-    }
+    };
 }
 
-#[dtor(unsafe)]
-pub fn deinit() {
-    unsafe {
-        ManuallyDrop::drop(&mut pos::POS);
-    }
-}
+SIntern_mods![
+    static pos::POS: Pos;
+    static str::STR: String;
+];
