@@ -2,7 +2,7 @@ use eight::asm::mmap_exec;
 
 fn main() {
     unsafe {
-        let map = mmap_exec(4096).unwrap();
+        let map = mmap_exec(4096);
 
         for i in 0..4096 {
             *map.add(i) = i as u8;
