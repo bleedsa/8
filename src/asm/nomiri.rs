@@ -39,3 +39,24 @@ fn map_exec_fun1() -> R<()> {
 
     Ok(())
 }
+
+#[test]
+fn map_exec_fun2() -> R<()> {
+    let mut asm = Asm::new();
+    asm.emit_fun::<2, _, _>(
+        "add",
+        "
+        mov eax, edi
+        add eax, esi
+        ret
+        "
+    )?;
+
+    let e = asm.exe()?;
+    let f = unsafe { fun!(e, fn(i32, i32) -> i32 = "add") };
+
+    assert_eq!(15i32, f(10, 5));
+
+    Ok(())
+}
+
