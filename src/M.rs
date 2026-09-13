@@ -1,5 +1,7 @@
 use crate::pre::*;
-use std::{mem::MaybeUninit as U, hint::unlikely, fmt, ptr};
+use std::{cmp, fmt, hint::unlikely, mem::MaybeUninit as U, ptr, slice, rc::Rc, borrow::Cow, intrinsics::simd::simd_splat};
+
+pub mod err;
 
 pub trait To<X> {
     fn to(self) -> X;
@@ -13,9 +15,9 @@ macro_rules! _impl_to {
                 fn to(self) -> $I {
                     debug_assert!(size_of::<$I>() >= size_of::<$T>());
                     unsafe {
-                        let mut r: U<$I> = U::uninit();
-                        memmove(&raw mut r, &raw const self, size_of::<$T>());
-                        r.assume_init()
+                        let mut r: $I = simd_splat(0u8);
+                        memcpy(&raw mut r, &raw const self, size_of::<$T>());
+                        r
                     }
                 }
             }
@@ -27,7 +29,7 @@ macro_rules! _impl_to {
                     debug_assert!(size_of::<$T>() <= size_of::<$I>());
                     let mut r: U<$T> = U::uninit();
                     unsafe {
-                        memmove(&raw mut r, &raw const self, size_of::<$T>());
+                        memcpy(&raw mut r, &raw const self, size_of::<$T>());
                         r.assume_init()
                     }
                 }
@@ -36,67 +38,150 @@ macro_rules! _impl_to {
     };
 }
 
-_impl_to![ymm_t => I, F, C, *mut I, *mut F, *mut C, *mut Dyd];
-_impl_to![xmm_t => I, F, C, *mut I, *mut F, *mut C, *mut Dyd];
-_impl_to![u64   => I, F, C, *mut I, *mut F, *mut C, *mut Dyd];
+_impl_to![val_t => I, F, C, *mut I, *mut F, *mut C, Dyd];
 
+pub const VERB_LEN: usize = 4;
+
+/**
+ * a verb string
+ *
+ * NOTE to skylar: does NOT include adverbs.
+ * TODO: adverb_t
+ */
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct verb_t(pub [u8; VERB_LEN], pub u32);
+
+#[test]
+fn verb_t_valid_size() {
+    println!("Z: {}", size_of::<verb_t>());
+    assert!(size_of::<verb_t>() <= 8);
+}
+
+pub static VERB_CHRS: &str = "!@#$%^&*_+-=~:<>?,|.";
+
+impl verb_t {
+    #[inline]
+    pub fn new(p: Pos, s: &str) -> R<Self> {
+        /* check if all chars are valid verb chars */
+        if s.chars().any(|c| !VERB_CHRS.contains(c)) {
+            return E!(MErr::InvalidVerb(p, s.to_string()));
+        }
+
+        /* make a buffer */
+        let mut a = [0x43; VERB_LEN];
+
+        /* get the length of the str <= 4 */
+        let L = cmp::min(VERB_LEN, s.len());
+        debug_assert!(L <= VERB_LEN);
+
+        /* perform the copy */
+        unsafe {
+            memcpy(a.as_mut_ptr(), s.bytes().collect::<Vec<_>>().as_ptr(), L as usize);
+        }
+
+        Ok(Self(a, L as u32))
+    }
+
+    /** the actual char buffer */
+    #[inline]
+    pub fn vec<'a>(&'a self) -> &'a [u8; VERB_LEN] {
+        &self.0
+    }
+
+    #[inline(always)]
+    pub fn len(&self) -> usize {
+        self.1 as usize
+    }
+}
+
+type VerbArg<T> = Rc<Box<T>>;
+
+/**
+ * a dyadic verb. reference counted.
+ *
+ * `x` & `y` are alloc'd raw ptrs.
+ * `v` is the verb str (max 4 chars).
+ */
 pub struct Dyd {
-    pub v: [char; 4],
-    pub rc: u16,
-    pub x: *mut M,
-    pub y: *mut M,
+    /** str, len */
+    pub v: verb_t,
+    pub x: VerbArg<M>,
+    pub y: VerbArg<M>,
 }
 
 #[macro_export]
 macro_rules! V {
     ($v:expr, $x:expr, $y:expr) => {{
-        use std::cmp;
         unsafe {
             /* make the verb array */
-            let mut v = ['\0'; 4];
-            let vL = cmp::min(4, $v.len());
-            memmove(&raw mut v, $v.as_ptr(), vL);
+            let v = verb_t::new((&$x).pos, $v)?;
 
             /* alloc x&y */
-            let x = xxx::new(1)?; *x = $x;
-            let y = xxx::new(1)?; *y = $y;
+            let x = Rc::new(Box::new($x.clone()));
+            let y = Rc::new(Box::new($y.clone()));
 
-            Dyd {
-                v,
-                rc: 1,
-                x,
-                y,
-            }
+            Dyd { v, x, y }
         }
     }};
 }
 
 impl Dyd {
     #[inline(always)]
-    pub fn x<X>(&self) -> X
+    pub fn x<'a, X>(&'a self) -> X
     where
-        M: To<X>,
+        &'a M: To<X>,
     {
-        unsafe { To::<X>::to(*self.x) }
+        unsafe { (&**self.x).to() }
     }
 
     #[inline(always)]
-    pub fn y<X>(&self) -> X
+    pub fn y<'a, X>(&'a self) -> X
     where
-        M: To<X>,
+        &'a M: To<X>,
     {
-        unsafe { To::<X>::to(*self.y) }
+        unsafe { (&**self.y).to() }
+    }
+
+    #[inline(always)]
+    pub fn xty(&self) -> MTy {
+        unsafe { (&**self.x).ty }
+    }
+
+    #[inline(always)]
+    pub fn yty(&self) -> MTy {
+        unsafe { (&**self.y).ty }
+    }
+
+    #[inline]
+    pub fn v(&self) -> &str {
+        unsafe {
+            let v = self.v.vec();
+            let s = slice::from_raw_parts(v.as_ptr(), self.v_len());
+            if let Ok(x) = str::from_utf8(s) {
+                let _ = v;
+                return x;
+            } else {
+                unreachable!()
+            }
+        }
+    }
+
+    #[inline(always)]
+    pub fn v_len(&self) -> usize {
+        self.v.len()
     }
 }
 
 impl fmt::Debug for Dyd {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let Dyd { v, rc: _, x, y } = self;
-        unsafe {
-            match ((**x).ty, (**y).ty) {
-                (MTy::Int, MTy::Int) => write!(f, "({:?} {:?}, {:?})", v, self.x::<I>(), self.y::<I>()),
-                _ => todo!()
+        match (self.yty(), self.xty()) {
+            (MTy::Int, MTy::Int) => {
+                let v = self.v();
+                let x = self.x::<I>();
+                let y = self.y::<I>();
+                write!(f, "({v} {x:?}, {y:?})")
             }
+            _ => todo!(),
         }
     }
 }
@@ -114,29 +199,7 @@ impl PartialEq<Dyd> for Dyd {
     }
 }
 
-#[inline(always)]
-unsafe fn free_dyad_arg(x: *mut M) {
-    match unsafe { (*x).ty } {
-        MTy::Dyd => unsafe {
-            let x = x as *mut Dyd;
-            let _ = ptr::read(x);
-            xxx::free(x, 1);
-        }
-        _ => (),
-    }
-}
-
-impl Drop for Dyd {
-    fn drop(&mut self) {
-        self.rc -= 1;
-        if unlikely(self.rc <= 1) {
-            unsafe {
-                free_dyad_arg(self.x);
-                free_dyad_arg(self.y);
-            }
-        }
-    }
-}
+pub type val_t = ymm_t;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(u8)]
@@ -151,25 +214,23 @@ pub enum MTy {
     Mon,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct M {
     pub ty: MTy,
-    pub val: u64,
-    pub rc: usize,
+    pub pos: Pos,
+    pub val: val_t,
 }
 
-#[macro_export]
-macro_rules! mty {
-    (Int) => {I};
-    (Flt) => {F};
-    (Chr) => {C};
-    (Dyd) => {*mut Dyd};
-    ($t:ident) => {todo!()};
+impl M {
+    pub fn pos(mut self, pos: Pos) -> Self {
+        self.pos = pos;
+        self
+    }
 }
 
 impl fmt::Debug for M {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        /* 
+        /*
          * format atoms
          */
         macro_rules! atoms {
@@ -192,32 +253,21 @@ impl PartialEq<M> for M {
     fn eq(&self, y: &M) -> bool {
         let x = &*self;
 
-        macro_rules! mismatch_atoms {
-            [$($x:ident, $y:ident => $X:ty, $Y:ty, $C:ty);* $(;)*] => {{
-                match (x.ty, y.ty) {
-                    $(
-                        (MTy::$x, MTy::$y) => {
-                            let x = To::<$X>::to(x) as $C;
-                            let y = To::<$Y>::to(y) as $C;
-                            return x == y;
-                        }
-
-                        (MTy::$y, MTy::$x) => {
-                            let x = To::<$Y>::to(x) as $C;
-                            let y = To::<$X>::to(y) as $C;
-                            return x == y;
-                        }
-                    ),*,
-                    _ => (),
-                }
+        /* match simple atoms */
+        macro_rules! atoms {
+            [$($x:ident => $X:ty),* $(,)*] => {{
+                $(
+                    if let (MTy::$x, MTy::$x) = (x.ty, y.ty) {
+                        let x: $X = x.to();
+                        let y: $X = y.to();
+                        return x == y;
+                    }
+                )*
             }};
         }
-        mismatch_atoms![
-            Int, Flt => I, F, F;
-            Chr, Int => C, I, u8;
-        ];
+        atoms![Int => I, Flt => F, Chr => C];
 
-        todo!()
+        false
     }
 }
 
@@ -228,9 +278,9 @@ macro_rules! M_impls {
                 #[inline(always)]
                 fn to(self) -> M {
                     M {
+                        pos: Pos::default(),
                         ty: MTy::$ty,
                         val: self.to(),
-                        rc: 1,
                     }
                 }
             }
@@ -256,8 +306,14 @@ M_impls![
     Int => I,
     Flt => F,
     Chr => C,
-    Dyd => *mut Dyd,
+    Dyd => Dyd,
 ];
+
+#[test]
+fn M_val_valid_size() {
+    println!("Zs: {} >= {}", size_of::<val_t>(), size_of::<Dyd>());
+    assert!(size_of::<val_t>() >= size_of::<Dyd>());
+}
 
 #[cfg(test)]
 mod test {
@@ -282,10 +338,19 @@ mod test {
     fn mk_oprs() -> R<()> {
         let x: M = 5i32.to();
         let y: M = 10i32.to();
-        let o = V!("+", x, y);
 
-        assert_eq!(o.x::<I>(), 5);
-        assert_eq!(o.y::<I>(), 10);
+        let o = V!("+", x, y);
+        println!("{o:?}");
+        assert!(o.v() == "+");
+        assert!(5i32 == o.x());
+        assert!(10i32 == o.y());
+
+        let o = V!("=====", x, y);
+        println!("{o:?}");
+        println!("{}", o.v());
+        assert!(o.v() == "====");
+        assert!(5i32 == o.x());
+        assert!(10i32 == o.y());
 
         Ok(())
     }

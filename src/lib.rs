@@ -3,8 +3,9 @@
 #![allow(nonstandard_style)]
 #![feature(repr_simd)]
 #![feature(likely_unlikely)]
+#![feature(core_intrinsics)]
 
-use std::error::Error;
+use std::{error::Error, fmt};
 
 pub mod M;
 pub mod asm;
@@ -14,8 +15,10 @@ pub mod vm;
 
 pub mod pre {
     pub use crate::{
-        C, F, I, R, err_fmt,
-        mem::memmove,
+        C, E, F, I,
+        M::err::MErr,
+        Pos, R,
+        mem::memcpy,
         simd::{xmm_t, ymm_t},
     };
 }
@@ -26,9 +29,38 @@ pub type C = char;
 
 pub type R<T> = Result<T, Box<dyn Error>>;
 
+/** wrap an R error */
 #[macro_export]
-macro_rules! err_fmt {
-    ($($t:tt)*) => {{
-        Err(format!($($t)*))
-    }};
+macro_rules! E {
+    ($e:expr) => {{ Err(Box::new($e)) }};
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+#[repr(packed)]
+pub struct Pos(pub u32, pub u32, pub u32);
+
+impl Pos {
+    #[inline(always)]
+    pub fn line(&self) -> usize {
+        self.0 as usize
+    }
+
+    #[inline(always)]
+    pub fn col(&self) -> usize {
+        self.1 as usize
+    }
+}
+
+impl fmt::Display for Pos {
+    #[inline(always)]
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}, {}", self.line(), self.col())
+    }
+}
+
+impl Default for Pos {
+    #[inline(always)]
+    fn default() -> Self {
+        Self(0, 0, 0)
+    }
 }

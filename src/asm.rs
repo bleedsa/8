@@ -17,6 +17,8 @@ pub unsafe fn mmap_exec(z: usize) -> *mut u8 {
 mod test {
     use super::*;
 
+    /** NOTE: miri does not support calls to mmap with PROT_EXEC */
+    #[cfg(not(miri))]
     #[test]
     fn basic_mmap() {
         unsafe {
