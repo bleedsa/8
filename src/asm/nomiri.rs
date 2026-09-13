@@ -9,10 +9,7 @@ fn map_instrs() -> R<()> {
     let fun = asm.emit_fun(
         "exit",
         "
-        .equ EXIT, 60
-        mov eax, EXIT
-        xor edi, edi
-        syscall
+        ret
         ",
     )?;
 
