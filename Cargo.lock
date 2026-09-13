@@ -3,14 +3,10 @@
 version = 4
 
 [[package]]
-name = "assembler"
-version = "0.10.1"
+name = "asm-rs"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87394e5e13802ed108ab335cdb9626251a2ea8b54902a026619bc851fe032a87"
-dependencies = [
- "libc",
- "likely",
-]
+checksum = "b43cd6bd0e5c09388248d6619d4f7e79b2f4f86b4aecf1f830430e40acee1455"
 
 [[package]]
 name = "dtor"
@@ -25,7 +21,7 @@ dependencies = [
 name = "eight"
 version = "0.1.0"
 dependencies = [
- "assembler",
+ "asm-rs",
  "dtor",
  "libc",
  "xxx",
@@ -36,12 +32,6 @@ name = "libc"
 version = "0.2.189"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3eaf3ede3fee6db1a4c2ee091bf8a8b4dccdc6d17f656fb07896ee72867612f2"
-
-[[package]]
-name = "likely"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a376724c7528c066bb67f2e958a9ce95f1dee26a57e614f64a9e7b15ea0bb9f5"
 
 [[package]]
 name = "linktime-proc-macro"
