@@ -5,7 +5,7 @@
 #![feature(likely_unlikely)]
 #![feature(core_intrinsics)]
 
-use crate::{M::val_t, pre::*};
+use crate::{pre::*};
 use std::{
     error::Error, fmt, intrinsics::simd::simd_splat, mem::MaybeUninit as U,
 };
@@ -91,36 +91,3 @@ pub fn init() {
 pub trait To<X> {
     fn to(self) -> X;
 }
-
-macro_rules! _impl_to {
-    [$I:ty => $($T:ty),* $(,)*] => {
-        $(
-            impl To<$I> for $T {
-                #[inline(always)]
-                fn to(self) -> $I {
-                    debug_assert!(size_of::<$I>() >= size_of::<$T>());
-                    unsafe {
-                        let mut r: $I = simd_splat(0u8);
-                        memcpy(&raw mut r, &raw const self, size_of::<$T>());
-                        r
-                    }
-                }
-            }
-
-            impl To<$T> for $I {
-                #[inline(always)]
-                fn to(self) -> $T {
-                    #[cfg(test)]
-                    debug_assert!(size_of::<$T>() <= size_of::<$I>());
-                    let mut r: U<$T> = U::uninit();
-                    unsafe {
-                        memcpy(&raw mut r, &raw const self, size_of::<$T>());
-                        r.assume_init()
-                    }
-                }
-            }
-        )*
-    };
-}
-
-_impl_to![val_t => I, F, C, *mut I, *mut F, *mut C];

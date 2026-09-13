@@ -1,73 +1,10 @@
 use crate::{intern::pos, pre::*};
 use std::{
-    cmp, fmt, intrinsics::simd::simd_splat, mem::MaybeUninit as U, ptr, rc::Rc,
+    cmp, fmt, intrinsics::simd::simd_splat, mem::{ManuallyDrop as MD, MaybeUninit as U}, ptr, rc::Rc,
     slice,
 };
 
 pub mod err;
-
-#[test]
-fn serialize_sizes() {
-    assert!(
-        size_of::<verb_t>() + size_of::<*const (M, M)>() <= size_of::<val_t>()
-    );
-}
-
-impl To<val_t> for Dyd {
-    fn to(self) -> val_t {
-        unsafe {
-            let mut r: val_t = simd_splat(0u8);
-            let mut ptr = (&raw mut r).cast::<u8>();
-
-            /* cpy the verb */
-            const VZ: usize = size_of::<verb_t>();
-            let v = &raw const self.v;
-
-            /* cpy */
-            memcpy(ptr, v, VZ);
-            ptr = ptr.add(VZ);
-
-            /* args */
-            let a = Rc::into_raw(self.a);
-            memcpy(ptr, &raw const a, size_of::<*const (M, M)>());
-
-            println!("{:?}", unsafe { (*a).clone() });
-
-            r
-        }
-    }
-}
-
-impl To<Dyd> for val_t {
-    fn to(mut self) -> Dyd {
-        /* raw self */
-        let mut bs = (&raw mut self).cast::<u8>();
-
-        unsafe {
-            /* copy verb name */
-            let v = {
-                const VZ: usize = size_of::<verb_t>();
-
-                /* uninit */
-                let mut v: U<verb_t> = U::uninit();
-                let v = v.as_mut_ptr().cast::<verb_t>();
-
-                *v = *(bs as *const verb_t); /* copy */
-                bs = bs.add(VZ); /* inc */
-                *v /* ret */
-            };
-
-            /* args */
-            let mut raw: *const (M, M) = ptr::null();
-            memcpy(&raw mut raw, bs, size_of::<*const (M, M)>());
-            let a: Rc<(M, M)> = Rc::from_raw(raw);
-
-            println!("{a:?}");
-
-            Dyd { v, a }
-        }
-    }
-}
 
 pub const VERB_LEN: usize = 4;
 
@@ -302,18 +239,21 @@ pub enum MTy {
     Int,
     Flt,
     Chr,
-    INT,
-    FLT,
-    CHR,
     Dyd,
-    Mon,
 }
 
-#[derive(Clone)]
+#[repr(C)]
+pub union MVal {
+    i: I,
+    f: F,
+    c: C,
+    v: MD<Dyd>,
+}
+
 pub struct M {
     pub ty: MTy,
     pub pos: &'static Pos,
-    pub val: val_t,
+    pub val: MVal,
 }
 
 impl M {
@@ -324,13 +264,35 @@ impl M {
     }
 }
 
+impl Clone for M {
+    fn clone(&self) -> Self {
+        use MTy::*;
+        let ty = self.ty;
+        let pos = self.pos;
+        let val = &self.val;
+
+        let val = unsafe {
+            match ty {
+                Int => MVal { i: val.i },
+                Flt => MVal { f: val.f },
+                Chr => MVal { c: val.c },
+                Dyd => MVal { v: val.v.clone() },
+            }
+        };
+
+        M { ty, pos, val }
+    }
+}
+
 impl Drop for M {
     fn drop(&mut self) {
-        match self.ty {
-            MTy::Dyd => {
-                let _: Dyd = self.val.to();
+        use MTy::*;
+
+        unsafe {
+            match self.ty {
+                Dyd => MD::drop(&mut self.val.v),
+                _ => (),
             }
-            _ => (),
         }
     }
 }
@@ -343,17 +305,12 @@ impl fmt::Debug for M {
         macro_rules! atoms {
             [$($i:ident => $t:ty),* $(,)*] => {{
                 match self.ty {
-                    $(MTy::$i => return write!(f, "{}", To::<$t>::to(self.val))),*,
+                    $(MTy::$i => return write!(f, "{}", To::<$t>::to(self))),*,
                     _ => (),
                 }
             }};
         }
         atoms![Int => I, Flt => F, Chr => C];
-
-        match self.ty {
-            MTy::Dyd => return write!(f, "{:?}", To::<Dyd>::to(self.val)),
-            _ => ()
-        }
 
         match self.ty {
             _ => unreachable!(),
@@ -377,48 +334,88 @@ impl PartialEq<M> for M {
                 )*
             }};
         }
-        atoms![Int => I, Flt => F, Chr => C];
+        atoms![Int => I, Flt => F, Chr => C, Dyd => Dyd];
 
         false
     }
 }
 
-macro_rules! M_impls {
-    [$($ty:ident => $T:ty),* $(,)*] => {
+macro_rules! M_to_impls_simple {
+    [$($ty:ident => $r:ty => $p:ident),* $(,)*] => {
         $(
-            impl To<M> for $T {
-                #[inline(always)]
-                fn to(self) -> M {
-                    M {
-                        pos: pos().add(Pos::default()),
-                        ty: MTy::$ty,
-                        val: self.to(),
+        impl To<$r> for M {
+            fn to(self) -> $r {
+                unsafe {
+                    self.val.$p
+                }
+            }
+        }
+
+        impl To<$r> for &M {
+            fn to(self) -> $r {
+                unsafe {
+                    self.val.$p
+                }
+            }
+        }
+
+        impl To<M> for $r {
+            fn to(self) -> M {
+                M {
+                    ty: MTy::$ty,
+                    pos: pos().add(Pos::default()),
+                    val: MVal {
+                        $p: self,
                     }
                 }
             }
-
-            impl To<$T> for M {
-                #[inline(always)]
-                fn to(self) -> $T {
-                    self.val.to()
-                }
-            }
-
-            impl To<$T> for &M {
-                #[inline(always)]
-                fn to(self) -> $T {
-                    self.val.to()
-                }
-            }
+        }
         )*
     };
 }
 
-M_impls![
-    Int => I,
-    Flt => F,
-    Chr => C,
-    Dyd => Dyd,
+M_to_impls_simple![
+    Int => I => i,
+    Flt => F => f,
+    Chr => C => c,
+];
+
+macro_rules! M_to_impls_md {
+    [$($ty:ident => $r:ty => $p:ident),* $(,)*] =>{
+        $(
+        impl To<$r> for M {
+            fn to(self) -> $r {
+                unsafe {
+                    (*self.val.v).clone()
+                }
+            }
+        }
+
+        impl To<$r> for &M {
+            fn to(self) -> $r {
+                unsafe {
+                    (*self.val.v).clone()
+                }
+            }
+        }
+
+        impl To<M> for $r {
+            fn to(self) -> M {
+                M {
+                    ty: MTy::$ty,
+                    pos: pos().add(Pos::default()),
+                    val: MVal {
+                        $p: MD::new(self),
+                    }
+                }
+            }
+        }
+        )*
+    };
+}
+
+M_to_impls_md![
+    Dyd => Dyd => v
 ];
 
 impl To<M> for &M {
