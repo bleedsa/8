@@ -1,7 +1,6 @@
 use asm_rs::{Arch, Assembler, AssemblyResult};
 
 use crate::{
-    M::M,
     asm::err::pre::*,
     intern,
     mem::{mmap_exec, munmap},
@@ -95,14 +94,14 @@ impl Asm {
         Ok(self)
     }
 
-    pub fn define_const<N, X>(&mut self, n: N, x: X) -> &mut Self
+    pub fn define_const<N, X>(&mut self, n: N, x: X) -> R<&mut Self>
     where
-        N: ToString,
+        N: AsRef<str>,
         X: AsmDefine,
     {
-        let n = intern::str::add(n.to_string());
+        unS!(self.asm.label(n.as_ref()));
         let _ = x.define(self);
-        self
+        Ok(self)
     }
 
     pub fn exe(self) -> R<ExePage> {

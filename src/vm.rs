@@ -1,4 +1,4 @@
-use crate::{M::M, asm::ExePage, pre::*};
+use crate::{asm::ExePage, pre::*};
 
 pub struct Fun<'m> {
     /** reference to the start of the generated page */

@@ -2,8 +2,8 @@ use crate::{asm::Asm, pre::*};
 
 #[test]
 fn map_exec_fun0() -> R<()> {
-    let mut asm = Asm::new();
-    let mut asm = asm.emit_fun::<0, _, _>(
+    let asm = Asm::new();
+    let asm = asm.emit_fun::<0, _, _>(
         "fun0",
         "
         xor eax, eax
@@ -22,8 +22,8 @@ fn map_exec_fun0() -> R<()> {
 
 #[test]
 fn map_exec_fun1() -> R<()> {
-    let mut asm = Asm::new();
-    let mut asm = asm.emit_fun::<1, _, _>(
+    let asm = Asm::new();
+    let asm = asm.emit_fun::<1, _, _>(
         "inc",
         "
         inc edi
@@ -42,8 +42,8 @@ fn map_exec_fun1() -> R<()> {
 
 #[test]
 fn map_exec_fun2() -> R<()> {
-    let mut asm = Asm::new();
-    let mut asm = asm.emit_fun::<2, _, _>(
+    let asm = Asm::new();
+    let asm = asm.emit_fun::<2, _, _>(
         "add",
         "
         mov eax, edi
