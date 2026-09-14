@@ -107,8 +107,21 @@ mod nomiri {
     }
 
     #[test]
-    fn eval_add_F() {
+    fn eval_add_F() -> R<()> {
         let mut vm = VM::new();
+
+        let add = mkasmfuns!(vm => [
+            fn add(F, F) -> F =>
+                "
+                addsd xmm0, xmm1
+                movd rax, xmm0
+                ret
+                ";
+        ]);
+
+        assert_eq!(add(1.0, 2.0), 3.0);
+
+        Ok(())
     }
 
     /*
