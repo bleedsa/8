@@ -1,4 +1,7 @@
-use crate::{intern::pos, pre::*};
+use crate::{
+    intern::{self, pos},
+    pre::*,
+};
 use std::{cmp, fmt, mem::ManuallyDrop as MD, rc::Rc, slice};
 
 pub mod err;
@@ -229,7 +232,32 @@ impl PartialEq<Dyd> for Dyd {
     }
 }
 
-pub type val_t = ymm_t;
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct Fun {
+    pub body: &'static [M],
+}
+
+impl Fun {
+    pub fn new(body: Vec<M>) -> Self {
+        Self {
+            body: intern::bodies::add(body),
+        }
+    }
+}
+
+impl fmt::Display for Fun {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{{{}}}",
+            self.body
+                .iter()
+                .map(|x| format!("{x:?}"))
+                .intersperse(";".to_string())
+                .collect::<String>()
+        )
+    }
+}
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(u8)]
@@ -238,6 +266,7 @@ pub enum MTy {
     Flt,
     Chr,
     Dyd,
+    Fun,
 }
 
 #[repr(C)]
@@ -246,6 +275,7 @@ pub union MVal {
     f: F,
     c: C,
     v: MD<Dyd>,
+    o: MD<Fun>,
 }
 
 pub struct M {
@@ -275,6 +305,7 @@ impl Clone for M {
                 Flt => MVal { f: val.f },
                 Chr => MVal { c: val.c },
                 Dyd => MVal { v: val.v.clone() },
+                Fun => MVal { o: val.o.clone() },
             }
         };
 
@@ -289,6 +320,7 @@ impl Drop for M {
         unsafe {
             match self.ty {
                 Dyd => MD::drop(&mut self.val.v),
+                Fun => MD::drop(&mut self.val.o),
                 _ => (),
             }
         }
@@ -307,7 +339,7 @@ impl fmt::Debug for M {
                 }
             }};
         }
-        atoms![Int => I, Flt => F, Chr => C, Dyd => Dyd]
+        atoms![Int => I, Flt => F, Chr => C, Dyd => Dyd, Fun => Fun]
     }
 }
 
@@ -379,7 +411,7 @@ macro_rules! M_to_impls_md {
         impl To<$r> for M {
             fn to(self) -> $r {
                 unsafe {
-                    (*self.val.v).clone()
+                    (*self.val.$p).clone()
                 }
             }
         }
@@ -387,7 +419,7 @@ macro_rules! M_to_impls_md {
         impl To<$r> for &M {
             fn to(self) -> $r {
                 unsafe {
-                    (*self.val.v).clone()
+                    (*self.val.$p).clone()
                 }
             }
         }
@@ -408,7 +440,8 @@ macro_rules! M_to_impls_md {
 }
 
 M_to_impls_md![
-    Dyd => Dyd => v
+    Dyd => Dyd => v,
+    Fun => Fun => o,
 ];
 
 impl To<M> for &M {
@@ -421,12 +454,6 @@ impl To<M> for M {
     fn to(self) -> M {
         self
     }
-}
-
-#[test]
-fn M_val_valid_size() {
-    println!("Zs: {} >= {}", size_of::<val_t>(), size_of::<Dyd>());
-    assert!(size_of::<val_t>() >= size_of::<Dyd>());
 }
 
 #[cfg(test)]

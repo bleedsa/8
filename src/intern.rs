@@ -1,4 +1,4 @@
-use crate::pre::*;
+use crate::{M::M, pre::*};
 use dtor::dtor;
 use std::{
     cell::UnsafeCell, hint::unlikely, marker::PhantomData, mem::ManuallyDrop,
@@ -128,12 +128,6 @@ impl<X> SIntern<X> {
     }
 }
 
-impl<X> Drop for SIntern<X> {
-    fn drop(&mut self) {
-        ()
-    }
-}
-
 unsafe impl<X> Send for SIntern<X> {}
 unsafe impl<X> Sync for SIntern<X> {}
 
@@ -165,4 +159,5 @@ macro_rules! SIntern_mods {
 SIntern_mods![
     static pos::POS: Pos;
     static str::STR: String;
+    static bodies::BODIES: Vec<M>;
 ];

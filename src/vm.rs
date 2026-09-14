@@ -42,12 +42,6 @@ macro_rules! mkasmfuns {
     ($vm:expr => [
         $(fn $i:ident($($t:ty),*) -> $r:ty => $s:expr;)*
     ]) => {{
-        /*
-        $(fn $i<'m>(vm: &mut VM<'m>) -> R<extern "C" fn($($t),*) -> $r> {
-
-        })
-        */
-
         $crate::mkasmfuns!($vm => [
             $(
                 fn $i[Asm::new()]($($t),*) -> $r

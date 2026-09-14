@@ -7,6 +7,7 @@
 #![feature(const_convert)]
 #![feature(const_trait_impl)]
 #![feature(macro_metavar_expr)]
+#![feature(iter_intersperse)]
 
 use std::{error::Error, fmt};
 
