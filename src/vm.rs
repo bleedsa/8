@@ -79,8 +79,8 @@ mod nomiri {
         let (add) = mkasmfuns!(vm => [
             fn add(I, I) -> I =>
                 "
-                mov eax, rdi
-                add eax, rsi
+                mov eax, edi
+                add eax, esi
                 ret
                 ";
 
