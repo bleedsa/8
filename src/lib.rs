@@ -6,6 +6,7 @@
 #![feature(likely_unlikely)]
 #![feature(const_convert)]
 #![feature(const_trait_impl)]
+#![feature(macro_metavar_expr)]
 
 use std::{
     error::Error, fmt,

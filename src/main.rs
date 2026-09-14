@@ -1,20 +1,20 @@
-use eight::{M::M, V, pre::*, asm::Asm};
+#![feature(macro_metavar_expr)]
+
+use eight::{pre::*, asm::Asm, vm::VM, mkasmfuns};
 
 fn main() -> R<()> {
-    let mut asm = Asm::new();
-    let fun = asm.emit_fun0(
-        "exit",
-        "
-        .equ EXIT, 60
-        mov eax, EXIT
-        mov edi, 0
-        syscall
-        ",
-    )?;
+    let mut vm = VM::new();
 
-    let exe = asm.exe()?;
-    let f: extern "C" fn() = exe.fun0("exit")?;
-    f();
+    let add = mkasmfuns!(vm => [
+        fn add(i32, i32) -> i32
+        => "
+           mov eax, edi
+           add eax, esi
+           ret
+           ";
+    ]);
+
+    println!("{}", add(10, 5));
 
     Ok(())
 }

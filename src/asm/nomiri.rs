@@ -15,7 +15,7 @@ fn map_exec_fun0() -> R<()> {
     let e = asm.exe()?;
     let f = unsafe { e.fun0::<_, i32>("fun0")? };
 
-    assert_eq!(1i32, f());
+    assert_eq!(1, f());
 
     Ok(())
 }
@@ -35,7 +35,7 @@ fn map_exec_fun1() -> R<()> {
     let e = asm.exe()?;
     let f = unsafe { fun!(e, fn(i32) -> i32 = "inc") };
 
-    assert_eq!(2i32, f(1));
+    assert_eq!(2, f(1));
 
     Ok(())
 }
@@ -55,7 +55,7 @@ fn map_exec_fun2() -> R<()> {
     let e = asm.exe()?;
     let f = unsafe { fun!(e, fn(i32, i32) -> i32 = "add") };
 
-    assert_eq!(15i32, f(10, 5));
+    assert_eq!(15, f(10, 5));
 
     Ok(())
 }
