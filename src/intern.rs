@@ -1,4 +1,4 @@
-use crate::{M::M, pre::*};
+use crate::{M::{MTy, M}, pre::*};
 use dtor::dtor;
 use std::{
     cell::UnsafeCell, hint::unlikely, marker::PhantomData, mem::ManuallyDrop,
@@ -159,5 +159,7 @@ macro_rules! SIntern_mods {
 SIntern_mods![
     static pos::POS: Pos;
     static str::STR: String;
+    static strs::STRS: Vec<&'static str>;
     static bodies::BODIES: Vec<M>;
+    static tys::TYS: Vec<MTy>;
 ];

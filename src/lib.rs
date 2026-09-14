@@ -17,6 +17,7 @@ pub mod intern;
 pub mod mem;
 pub mod simd;
 pub mod vm;
+pub mod fun;
 
 pub mod pre {
     pub use crate::{

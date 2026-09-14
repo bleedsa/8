@@ -1,6 +1,7 @@
 use crate::{
-    intern::{self, pos},
+    intern,
     pre::*,
+    fun::Fun,
 };
 use std::{cmp, fmt, mem::ManuallyDrop as MD, rc::Rc, slice};
 
@@ -233,33 +234,6 @@ impl PartialEq<Dyd> for Dyd {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub struct Fun {
-    pub body: &'static [M],
-}
-
-impl Fun {
-    pub fn new(body: Vec<M>) -> Self {
-        Self {
-            body: intern::bodies::add(body),
-        }
-    }
-}
-
-impl fmt::Display for Fun {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{{{}}}",
-            self.body
-                .iter()
-                .map(|x| format!("{x:?}"))
-                .intersperse(";".to_string())
-                .collect::<String>()
-        )
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(u8)]
 pub enum MTy {
     Int,
@@ -286,7 +260,7 @@ pub struct M {
 
 impl M {
     pub fn pos(mut self, p: Pos) -> Self {
-        let ptr = pos::add(p);
+        let ptr = intern::pos::add(p);
         self.pos = ptr;
         self
     }
@@ -388,7 +362,7 @@ macro_rules! M_to_impls_simple {
             fn to(self) -> M {
                 M {
                     ty: MTy::$ty,
-                    pos: pos::add(Pos::default()),
+                    pos: intern::pos::add(Pos::default()),
                     val: MVal {
                         $p: self,
                     }
@@ -428,7 +402,7 @@ macro_rules! M_to_impls_md {
             fn to(self) -> M {
                 M {
                     ty: MTy::$ty,
-                    pos: pos::add(Pos::default()),
+                    pos: intern::pos::add(Pos::default()),
                     val: MVal {
                         $p: MD::new(self),
                     }
