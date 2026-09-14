@@ -1,8 +1,5 @@
 use crate::{intern::pos, pre::*};
-use std::{
-    cmp, fmt, mem::{ManuallyDrop as MD}, rc::Rc,
-    slice,
-};
+use std::{cmp, fmt, mem::ManuallyDrop as MD, rc::Rc, slice};
 
 pub mod err;
 

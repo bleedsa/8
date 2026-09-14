@@ -1,9 +1,9 @@
-use crate::{pre::*, asm::Asm};
+use crate::{asm::Asm, pre::*};
 
 #[test]
 fn map_exec_fun0() -> R<()> {
     let mut asm = Asm::new();
-    asm.emit_fun::<0, _, _>(
+    let mut asm = asm.emit_fun::<0, _, _>(
         "fun0",
         "
         xor eax, eax
@@ -23,7 +23,7 @@ fn map_exec_fun0() -> R<()> {
 #[test]
 fn map_exec_fun1() -> R<()> {
     let mut asm = Asm::new();
-    asm.emit_fun::<1, _, _>(
+    let mut asm = asm.emit_fun::<1, _, _>(
         "inc",
         "
         inc edi
@@ -43,13 +43,13 @@ fn map_exec_fun1() -> R<()> {
 #[test]
 fn map_exec_fun2() -> R<()> {
     let mut asm = Asm::new();
-    asm.emit_fun::<2, _, _>(
+    let mut asm = asm.emit_fun::<2, _, _>(
         "add",
         "
         mov eax, edi
         add eax, esi
         ret
-        "
+        ",
     )?;
 
     let e = asm.exe()?;
@@ -59,4 +59,3 @@ fn map_exec_fun2() -> R<()> {
 
     Ok(())
 }
-

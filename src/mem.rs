@@ -1,9 +1,15 @@
 use libc::{
-    MAP_ANONYMOUS, MAP_PRIVATE, PROT_EXEC, PROT_READ, PROT_WRITE, size_t, c_void,
+    MAP_ANONYMOUS, MAP_PRIVATE, PROT_EXEC, PROT_READ, PROT_WRITE, c_void,
+    size_t,
 };
 
-use std::{hint::likely, ptr::{self, NonNull}, error::Error, fmt};
 use crate::pre::*;
+use std::{
+    error::Error,
+    fmt,
+    hint::likely,
+    ptr::{self, NonNull},
+};
 
 #[derive(Debug)]
 pub enum MemErr {
@@ -35,7 +41,9 @@ pub unsafe fn mmap_exec(z: usize) -> R<NonNull<u8>> {
     let m_flags: i32 = (MAP_PRIVATE | MAP_ANONYMOUS) as i32;
 
     unsafe {
-        let r = libc::mmap(ptr::null_mut(), z as size_t, p_flags, m_flags, -1, 0) as *mut u8;
+        let r =
+            libc::mmap(ptr::null_mut(), z as size_t, p_flags, m_flags, -1, 0)
+                as *mut u8;
         Ok(NonNull::new(r).ok_or(MemErr::MMap)?)
     }
 }
@@ -50,7 +58,6 @@ pub unsafe fn munmap(page: NonNull<u8>, z: usize) -> R<()> {
 
     Ok(())
 }
-
 
 /** NOTE: miri does not support calls to mmap with PROT_EXEC */
 #[cfg(not(miri))]

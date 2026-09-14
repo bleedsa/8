@@ -1,7 +1,13 @@
 use asm_rs::{Arch, Assembler, AssemblyResult};
 
-use std::{ptr::NonNull};
-use crate::{pre::*, asm::err::pre::*, intern, mem::{mmap_exec, munmap}};
+use crate::{
+    M::M,
+    asm::err::pre::*,
+    intern,
+    mem::{mmap_exec, munmap},
+    pre::*,
+};
+use std::ptr::NonNull;
 
 pub mod err;
 
@@ -29,6 +35,31 @@ impl AsmFun {
     }
 }
 
+pub trait AsmDefine {
+    fn define(self, asm: &mut Asm) -> R<&mut Asm>;
+}
+
+impl AsmDefine for u8 {
+    fn define(self, asm: &mut Asm) -> R<&mut Asm> {
+        let _ = unS!(asm.asm.db(&[self]));
+        Ok(asm)
+    }
+}
+
+impl AsmDefine for I {
+    fn define(self, asm: &mut Asm) -> R<&mut Asm> {
+        let _ = unS!(asm.asm.dd(self as u32));
+        Ok(asm)
+    }
+}
+
+impl AsmDefine for F {
+    fn define(self, asm: &mut Asm) -> R<&mut Asm> {
+        let _ = unS!(asm.asm.dq(self as u64));
+        Ok(asm)
+    }
+}
+
 pub struct Asm {
     pub asm: Assembler,
 }
@@ -48,7 +79,7 @@ impl Asm {
         Ok(())
     }
 
-    pub fn emit_fun<const A: usize, N, S>(&mut self, n: N, s: S) -> R<()>
+    pub fn emit_fun<const A: usize, N, S>(mut self, n: N, s: S) -> R<Self>
     where
         N: AsRef<str>,
         S: AsRef<str>,
@@ -61,14 +92,24 @@ impl Asm {
         unS!(self.asm.label(n));
         unS!(self.asm.emit(s));
 
-        Ok(())
+        Ok(self)
+    }
+
+    pub fn define_const<N, X>(&mut self, n: N, x: X) -> &mut Self
+    where
+        N: ToString,
+        X: AsmDefine,
+    {
+        let n = intern::str::add(n.to_string());
+        let _ = x.define(self);
+        self
     }
 
     pub fn exe(self) -> R<ExePage> {
         /* grab the assembler results */
         let res = unS!(self.asm.finish());
-        let bs = res.bytes();               /* get the bytes */
-        let bL = bs.len();                  /* number of bytes */
+        let bs = res.bytes(); /* get the bytes */
+        let bL = bs.len(); /* number of bytes */
         let map = unsafe { mmap_exec(bL)? }; /* make an executable mem page */
 
         /* copy the asm into the page */
@@ -87,9 +128,7 @@ pub struct ExePage {
 
 impl AsRef<u8> for ExePage {
     fn as_ref<'m>(&'m self) -> &'m u8 {
-        unsafe {
-            &*self.map.as_ptr()
-        }
+        unsafe { &*self.map.as_ptr() }
     }
 }
 
@@ -105,10 +144,7 @@ impl Drop for ExePage {
 
 impl ExePage {
     pub fn new(map: NonNull<u8>, res: AssemblyResult) -> Self {
-        Self {
-            map,
-            res,
-        }
+        Self { map, res }
     }
 
     #[inline(always)]
@@ -117,7 +153,8 @@ impl ExePage {
         N: AsRef<str>,
     {
         let n = n.as_ref();
-        Ok(self.res
+        Ok(self
+            .res
             .label_address(n)
             .ok_or(AsmErr::LabelNotFound(n.to_string()))? as usize)
     }
@@ -132,13 +169,11 @@ impl ExePage {
     }
 
     #[inline(always)]
-    pub unsafe fn fun0<'m, N, T>(&self, n: N) -> R<&'m extern "C" fn() -> T> 
+    pub unsafe fn fun0<'m, N, T>(&self, n: N) -> R<&'m extern "C" fn() -> T>
     where
-        N: AsRef<str>
+        N: AsRef<str>,
     {
-        unsafe {
-            Ok(fun!(self, fn() -> T = n.as_ref()))
-        }
+        unsafe { Ok(fun!(self, fn() -> T = n.as_ref())) }
     }
 }
 

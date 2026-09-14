@@ -1,6 +1,9 @@
-use dtor::dtor;
 use crate::pre::*;
-use std::{sync::Mutex, ptr, hint::unlikely, cell::UnsafeCell, mem::ManuallyDrop, marker::PhantomData};
+use dtor::dtor;
+use std::{
+    cell::UnsafeCell, hint::unlikely, marker::PhantomData, mem::ManuallyDrop,
+    ptr, sync::Mutex,
+};
 
 pub struct InternEntry<X>(pub X);
 
@@ -38,7 +41,8 @@ impl<'a, X> Intern<'a, X> {
     fn alloc(&mut self) {
         self.cap = 8;
         unsafe {
-            self.ptr = xxx::new(self.cap).expect("Intern::alloc(): failed to alloc");
+            self.ptr =
+                xxx::new(self.cap).expect("Intern::alloc(): failed to alloc");
         }
     }
 
@@ -49,13 +53,14 @@ impl<'a, X> Intern<'a, X> {
             }
 
             let cap = self.cap * 2;
-            let ptr: *mut InternEntry<X> = xxx::new(cap).expect("Intern::grow(): failed to realloc");
+            let ptr: *mut InternEntry<X> =
+                xxx::new(cap).expect("Intern::grow(): failed to realloc");
 
             /* copy */
             for i in 0..self.cap {
                 ptr::write(ptr.add(i), ptr::read(self.ptr.add(i)));
             }
-            
+
             self.cap = cap;
             self.ptr = ptr;
         }
@@ -63,9 +68,9 @@ impl<'a, X> Intern<'a, X> {
 
     pub fn add(&'a mut self, x: X) -> &'a X
     where
-        X: PartialEq
+        X: PartialEq,
     {
-         if unlikely(self.cap == 0) {
+        if unlikely(self.cap == 0) {
             self.alloc();
         }
 
@@ -87,7 +92,6 @@ impl<'a, X> Intern<'a, X> {
             (&*p).as_ref()
         }
     }
-
 }
 
 impl<'a, X> Drop for Intern<'a, X> {

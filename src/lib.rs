@@ -8,9 +8,7 @@
 #![feature(const_trait_impl)]
 #![feature(macro_metavar_expr)]
 
-use std::{
-    error::Error, fmt,
-};
+use std::{error::Error, fmt};
 
 pub mod M;
 pub mod asm;
@@ -21,9 +19,9 @@ pub mod vm;
 
 pub mod pre {
     pub use crate::{
-        C, E, F, I, fun,
+        C, E, F, I,
         M::err::MErr,
-        Pos, R, To, fatal,
+        Pos, R, To, fatal, fun,
         mem::memcpy,
         simd::{xmm_t, ymm_t},
     };
