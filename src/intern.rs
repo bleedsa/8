@@ -1,4 +1,4 @@
-use crate::{M::{MTy, M}, pre::*};
+use crate::{M::M, fun::Arg};
 use dtor::dtor;
 use std::{
     cell::UnsafeCell, hint::unlikely, marker::PhantomData, mem::ManuallyDrop,
@@ -132,17 +132,23 @@ unsafe impl<X> Send for SIntern<X> {}
 unsafe impl<X> Sync for SIntern<X> {}
 
 macro_rules! SIntern_mods {
-    [$(static $m:ident::$n:ident: $T:ty;)*] => {
+    [$(static $m:ident: $T:ty;)*] => {
         $(
             pub mod $m {
                 use super::*;
 
-                pub static mut $n: ManuallyDrop<SIntern<$T>> = ManuallyDrop::new(SIntern::new());
+                pub static mut TABLE: ManuallyDrop<SIntern<$T>> = ManuallyDrop::new(SIntern::new());
 
                 pub fn add(x: $T) -> &'static $T {
                     unsafe {
-                        (&mut *&raw mut $n).add(x)
+                        (&mut *&raw mut TABLE).add(x)
                     }
+                }
+
+                #[test]
+                fn addtest() {
+                    let p = add(<$T>::new());
+                    assert_eq!(p, &<$T>::new());
                 }
             }
         )*
@@ -150,16 +156,14 @@ macro_rules! SIntern_mods {
         #[dtor(unsafe)]
         pub fn deinit() {
             unsafe {
-                $(ManuallyDrop::drop(&mut $m::$n);)*
+                $(ManuallyDrop::drop(&mut $m::TABLE);)*
             }
         }
     };
 }
 
 SIntern_mods![
-    static pos::POS: Pos;
-    static str::STR: String;
-    static strs::STRS: Vec<&'static str>;
-    static bodies::BODIES: Vec<M>;
-    static tys::TYS: Vec<MTy>;
+    static str: String;
+    static ms: Vec<M>;
+    static args: Vec<Arg>;
 ];

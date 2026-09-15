@@ -1,7 +1,7 @@
 use crate::{
-    intern,
     pre::*,
     fun::Fun,
+    tup::Tup,
 };
 use std::{cmp, fmt, mem::ManuallyDrop as MD, rc::Rc, slice};
 
@@ -143,12 +143,12 @@ macro_rules! V {
         let y = To::<M>::to($y);
 
         /* make the verb array */
-        let v = verb_t::new(*x.pos, $v)?;
+        let v = verb_t::new(x.pos, $v)?;
 
         /* alloc x&y */
         let a = Rc::new((x, y));
 
-        Dyd { v, a }
+        Rc::new(Dyd { v, a })
     }};
 }
 
@@ -200,7 +200,7 @@ impl fmt::Debug for Dyd {
                 match self.$m() {
                     MTy::Int => write!(f, "{}", self.$f::<I>())?,
                     MTy::Flt => write!(f, "{}", self.$f::<F>())?,
-                    MTy::Dyd => write!(f, "{}", self.$f::<Dyd>())?,
+                    MTy::Dyd => write!(f, "{}", self.$f::<Rc<Dyd>>())?,
                     t => fatal!("invalid MTy in Debug::fmt(): {t:?}"),
                 }
             }};
@@ -241,6 +241,22 @@ pub enum MTy {
     Chr,
     Dyd,
     Fun,
+    Tup,
+}
+
+impl fmt::Display for MTy {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use MTy::*;
+
+        write!(f, "`{}", match self {
+            Int => "i",
+            Flt => "f",
+            Chr => "c",
+            Dyd => "v",
+            Fun => "o",
+            Tup => "t",
+        })
+    }
 }
 
 #[repr(C)]
@@ -248,22 +264,15 @@ pub union MVal {
     i: I,
     f: F,
     c: C,
-    v: MD<Dyd>,
-    o: MD<Fun>,
+    v: MD<Rc<Dyd>>,
+    o: MD<Rc<Fun>>,
+    t: MD<Rc<Tup>>,
 }
 
 pub struct M {
     pub ty: MTy,
-    pub pos: &'static Pos,
+    pub pos: Pos,
     pub val: MVal,
-}
-
-impl M {
-    pub fn pos(mut self, p: Pos) -> Self {
-        let ptr = intern::pos::add(p);
-        self.pos = ptr;
-        self
-    }
 }
 
 impl Clone for M {
@@ -280,6 +289,7 @@ impl Clone for M {
                 Chr => MVal { c: val.c },
                 Dyd => MVal { v: val.v.clone() },
                 Fun => MVal { o: val.o.clone() },
+                Tup => MVal { t: val.t.clone() },
             }
         };
 
@@ -295,6 +305,7 @@ impl Drop for M {
             match self.ty {
                 Dyd => MD::drop(&mut self.val.v),
                 Fun => MD::drop(&mut self.val.o),
+                Tup => MD::drop(&mut self.val.t),
                 _ => (),
             }
         }
@@ -309,11 +320,14 @@ impl fmt::Debug for M {
         macro_rules! atoms {
             [$($i:ident => $t:ty),* $(,)*] => {{
                 match self.ty {
-                    $(MTy::$i => write!(f, "{}", To::<$t>::to(self))),*,
+                    $(MTy::$i => write!(f, "{:?}", To::<$t>::to(self))),*,
                 }
             }};
         }
-        atoms![Int => I, Flt => F, Chr => C, Dyd => Dyd, Fun => Fun]
+        atoms![
+            Int => I, Flt => F, Chr => C,
+            Dyd => Rc<Dyd>, Fun => Rc<Fun>, Tup => Rc<Tup>,
+        ]
     }
 }
 
@@ -333,7 +347,10 @@ impl PartialEq<M> for M {
                 )*
             }};
         }
-        atoms![Int => I, Flt => F, Chr => C, Dyd => Dyd];
+        atoms![
+            Int => I, Flt => F, Chr => C,
+            Dyd => Rc<Dyd>, Fun => Rc<Fun>, Tup => Rc<Tup>
+        ];
 
         false
     }
@@ -362,7 +379,7 @@ macro_rules! M_to_impls_simple {
             fn to(self) -> M {
                 M {
                     ty: MTy::$ty,
-                    pos: intern::pos::add(Pos::default()),
+                    pos: Pos::default(),
                     val: MVal {
                         $p: self,
                     }
@@ -402,9 +419,9 @@ macro_rules! M_to_impls_md {
             fn to(self) -> M {
                 M {
                     ty: MTy::$ty,
-                    pos: intern::pos::add(Pos::default()),
+                    pos: Pos::default(),
                     val: MVal {
-                        $p: MD::new(self),
+                        $p: MD::<Self>::new(self),
                     }
                 }
             }
@@ -414,8 +431,9 @@ macro_rules! M_to_impls_md {
 }
 
 M_to_impls_md![
-    Dyd => Dyd => v,
-    Fun => Fun => o,
+    Dyd => Rc<Dyd> => v,
+    Fun => Rc<Fun> => o,
+    Tup => Rc<Tup> => t,
 ];
 
 impl To<M> for &M {

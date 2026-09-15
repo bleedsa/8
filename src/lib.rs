@@ -18,6 +18,7 @@ pub mod mem;
 pub mod simd;
 pub mod vm;
 pub mod fun;
+pub mod tup;
 
 pub mod pre {
     pub use crate::{
