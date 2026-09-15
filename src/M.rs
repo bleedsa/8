@@ -2,6 +2,7 @@ use crate::{
     pre::*,
     fun::Fun,
     tup::Tup,
+    verb::pre::*,
 };
 use std::{cmp, fmt, mem::ManuallyDrop as MD, rc::Rc, slice};
 
@@ -114,122 +115,6 @@ impl PartialEq for verb_t {
         }
 
         true
-    }
-}
-
-/**
- * a dyadic verb. reference counted.
- *
- * `x` & `y` are alloc'd raw ptrs.
- * `v` is the verb str (max 4 chars).
- */
-#[derive(Clone)]
-pub struct Dyd {
-    /** str, len */
-    pub v: verb_t,
-    pub a: Rc<(M, M)>,
-}
-
-#[macro_export]
-macro_rules! V {
-    ($v:expr, $x:expr, $y:expr) => {{
-        use std::rc::Rc;
-        use $crate::{
-            M::{Dyd, M, verb_t},
-            To,
-        };
-
-        let x = To::<M>::to($x);
-        let y = To::<M>::to($y);
-
-        /* make the verb array */
-        let v = verb_t::new(x.pos, $v)?;
-
-        /* alloc x&y */
-        let a = Rc::new((x, y));
-
-        Rc::new(Dyd { v, a })
-    }};
-}
-
-impl Dyd {
-    #[inline(always)]
-    pub fn x<'a, X>(&'a self) -> X
-    where
-        &'a M: To<X>,
-    {
-        (&(*self.a).0).to()
-    }
-
-    #[inline(always)]
-    pub fn y<'a, X>(&'a self) -> X
-    where
-        &'a M: To<X>,
-    {
-        (&(*self.a).1).to()
-    }
-
-    #[inline(always)]
-    pub fn xty(&self) -> MTy {
-        (&(*self.a).0).ty
-    }
-
-    #[inline(always)]
-    pub fn yty(&self) -> MTy {
-        (&(*self.a).1).ty
-    }
-
-    #[inline(always)]
-    pub fn v(&self) -> &str {
-        self.v.v()
-    }
-
-    #[inline(always)]
-    pub fn v_len(&self) -> usize {
-        self.v.len()
-    }
-}
-
-impl fmt::Debug for Dyd {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        /* v */
-        write!(f, "({} ", self.v())?;
-
-        macro_rules! fmt_arg {
-            ($m:ident => $f:ident) => {{
-                match self.$m() {
-                    MTy::Int => write!(f, "{}", self.$f::<I>())?,
-                    MTy::Flt => write!(f, "{}", self.$f::<F>())?,
-                    MTy::Dyd => write!(f, "{}", self.$f::<Rc<Dyd>>())?,
-                    t => fatal!("invalid MTy in Debug::fmt(): {t:?}"),
-                }
-            }};
-        }
-
-        fmt_arg!(xty=>x); /* x */
-        write!(f, " ")?;
-        fmt_arg!(yty=>y); /* y */
-
-        write!(f, ")")
-    }
-}
-
-impl fmt::Display for Dyd {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
-impl PartialEq<Dyd> for Dyd {
-    fn eq(&self, y: &Dyd) -> bool {
-        let x = &*self;
-
-        /* first make sure the verbs are the same */
-        if x.v != y.v {
-            return false;
-        }
-
-        self.a.0 == y.a.0 && self.a.1 == y.a.1
     }
 }
 
@@ -465,39 +350,5 @@ mod test {
         let c: M = 'a'.to();
         let c: C = c.to();
         assert_eq!(c, 'a');
-    }
-
-    #[test]
-    fn mk_basic_oprs() -> R<()> {
-        let x: M = 5i32.to();
-        let y: M = 10i32.to();
-
-        let o = V!("+", &x, &y);
-        println!("{o:?}");
-        assert!(o.v() == "+");
-        assert!(5i32 == o.x());
-        assert!(10i32 == o.y());
-
-        let o = V!("=====", &x, &y);
-        println!("{o:?}");
-        assert!(o.v() == "====");
-        assert!(5i32 == o.x());
-        assert!(10i32 == o.y());
-
-        Ok(())
-    }
-
-    #[test]
-    fn mk_nested_dyds() -> R<()> {
-        let o: M = V!("+", 15i32, 20i32).to();
-
-        /* nest & check */
-        let n = V!("@", &o, 20i32);
-        println!("{n:?}");
-        assert!(n.v() == "@");
-        assert!(o == n.x());
-        assert!(20i32 == n.y());
-
-        Ok(())
     }
 }
