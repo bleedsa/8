@@ -1,5 +1,5 @@
 use crate::{M::MTy, intern, pre::*};
-use std::{collections::HashMap, sync::Mutex};
+use std::sync::Mutex;
 
 type TmpVal = u16;
 static TMP_COUNT: Mutex<TmpVal> = Mutex::new(0);

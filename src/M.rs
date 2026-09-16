@@ -1,5 +1,5 @@
-use crate::{fun::Fun, pre::*, tup::Tup, verb::pre::*};
-use std::{fmt, mem::ManuallyDrop as MD, rc::Rc};
+use crate::{fun::Fun, pre::*, tup::Tup, verb::pre::*, vec::A};
+use std::{fmt::{self, Debug}, mem::ManuallyDrop as MD, rc::Rc};
 
 pub mod err;
 
@@ -9,6 +9,9 @@ pub enum MTy {
     Int,
     Flt,
     Chr,
+    INT,
+    FLT,
+    CHR,
     Dyd,
     Mon,
     Fun,
@@ -26,11 +29,14 @@ impl fmt::Display for MTy {
                 Int => "i",
                 Flt => "f",
                 Chr => "c",
+                INT => "I",
+                FLT => "F",
+                CHR => "C",
                 Dyd => "v",
                 Mon => "u",
                 Fun => "o",
                 Tup => "t",
-            }
+           }
         )
     }
 }
@@ -40,6 +46,9 @@ pub union MVal {
     i: I,
     f: F,
     c: C,
+    I: MD<A<I>>,
+    F: MD<A<F>>,
+    C: MD<A<C>>,
     v: MD<Rc<Dyd>>,
     u: MD<Rc<Mon>>,
     o: MD<Rc<Fun>>,
@@ -64,6 +73,9 @@ impl Clone for M {
                 Int => MVal { i: val.i },
                 Flt => MVal { f: val.f },
                 Chr => MVal { c: val.c },
+                INT => MVal { I: val.I.clone() },
+                FLT => MVal { F: val.F.clone() },
+                CHR => MVal { C: val.C.clone() },
                 Dyd => MVal { v: val.v.clone() },
                 Mon => MVal { u: val.u.clone() },
                 Fun => MVal { o: val.o.clone() },
@@ -105,6 +117,7 @@ impl fmt::Debug for M {
         }
         atoms![
             Int => I, Flt => F, Chr => C,
+            INT => A<I>, FLT => A<F>, CHR => A<C>,
             Dyd => Rc<Dyd>, Mon => Rc<Mon>,
             Fun => Rc<Fun>, Tup => Rc<Tup>,
         ]
@@ -129,6 +142,7 @@ impl PartialEq<M> for M {
         }
         atoms![
             Int => I, Flt => F, Chr => C,
+            INT => A<I>, FLT => A<F>, CHR => A<C>,
             Dyd => Rc<Dyd>, Mon => Rc<Mon>,
             Fun => Rc<Fun>, Tup => Rc<Tup>
         ];
@@ -212,10 +226,43 @@ macro_rules! M_to_impls_md {
 }
 
 M_to_impls_md![
+    INT => A<I> => I,
+    FLT => A<F> => F,
+    CHR => A<C> => C,
     Dyd => Rc<Dyd> => v,
     Mon => Rc<Mon> => u,
     Fun => Rc<Fun> => o,
     Tup => Rc<Tup> => t,
+];
+
+macro_rules! M_to_impls_vecs {
+    [$($n:ident => $t:ty => $v:ident),*$(,)*] => {
+        $(
+        impl To<M> for Vec<$t>
+        where
+            $t: Debug + PartialEq + Clone,
+        {
+            fn to(self) -> M {
+                let x = To::<A<$t>>::to(self);
+                To::<M>::to(x)
+            }
+        }
+
+        impl To<Vec<$t>> for M
+        where
+            $t: Debug + PartialEq + Clone,
+        {
+            fn to(self) -> Vec<$t> {
+                let x = To::<A<$t>>::to(self);
+                To::<Vec<$t>>::to(x)
+            }
+        }
+        )*
+    };
+}
+
+M_to_impls_vecs![
+    INT => I => I,
 ];
 
 impl To<M> for &M {
@@ -247,5 +294,23 @@ mod test {
         let c: M = 'a'.to();
         let c: C = c.to();
         assert_eq!(c, 'a');
+    }
+
+    #[test]
+    fn mk_vecs() {
+        let x: A<I> = vec![1, 2, 3, 4, 5].to();
+        let y: M = x.clone().to();
+        let y: A<I> = y.to();
+        assert_eq!(x, y);
+
+        let x: A<F> = vec![1., 2., 3., 4., 5.,].to();
+        let y: M = x.clone().to();
+        let y: A<F> = y.to();
+        assert_eq!(x, y);
+
+        let x: A<C> = "abcdefABCDEF".chars().collect::<Vec<_>>().to();
+        let y: M = x.clone().to();
+        let y: A<C> = y.to();
+        assert_eq!(x, y);
     }
 }
