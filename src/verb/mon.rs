@@ -8,21 +8,29 @@ use std::{
 
 pub fn iota(n: usize) -> *mut I {
     let n_div_4 = n / 4;
+
+    /* ptrs to write against */
     let ptr: *mut I = unsafe { xxx::new(n).expect("oom") };
     let xmm = ptr as *mut Ixmm_t;
-    const BASE: Ixmm_t =
-        unsafe { ptr::read_unaligned([0, 1, 2, 3].as_ptr() as *const Ixmm_t) };
+    
+    /* simd vecs */
+    let f: Ixmm_t = unsafe { simd_splat(4) };
+    let v = [0, 1, 2, 3].as_ptr() as *const Ixmm_t;
+    let mut v = unsafe { ptr::read_unaligned(v) };
 
+    /* vectorize */
     for i in 0..n_div_4 {
         unsafe {
-            let v = simd_add(BASE, simd_splat((i * 4) as I));
             ptr::write_unaligned(xmm.add(i), v);
+            v = simd_add(v, f);
         }
     }
 
+    /* write remainder */
     unsafe {
         let last = n_div_4 * 4;
         let rest = ptr.add(last);
+
         for i in 0..(n % 4) {
             ptr::write(rest.add(i), (i + last) as I);
         }
@@ -33,7 +41,7 @@ pub fn iota(n: usize) -> *mut I {
 
 #[test]
 fn raw_iota() {
-    let num = 27;
+    let num = 1027;
     let ptr = iota(num);
 
     for i in 0..num {
