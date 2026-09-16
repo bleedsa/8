@@ -93,6 +93,9 @@ impl Drop for M {
 
         unsafe {
             match self.ty {
+                INT => MD::drop(&mut self.val.I),
+                FLT => MD::drop(&mut self.val.F),
+                CHR => MD::drop(&mut self.val.C),
                 Dyd => MD::drop(&mut self.val.v),
                 Mon => MD::drop(&mut self.val.u),
                 Fun => MD::drop(&mut self.val.o),
