@@ -1,5 +1,8 @@
-use std::{rc::Rc, fmt};
-use crate::{intern, M::{MTy, M}};
+use crate::{
+    M::{M, MTy},
+    intern,
+};
+use std::{fmt, rc::Rc};
 
 #[derive(Copy, Clone, PartialEq)]
 pub struct Arg<'a>(pub &'a str, pub MTy);
@@ -21,7 +24,8 @@ impl Fun {
     where
         N: ToString,
     {
-        let args = args.iter()
+        let args = args
+            .iter()
             .map(|(n, t)| Arg(intern::str::add(n.to_string()), *t))
             .collect::<Vec<_>>()
             .into();

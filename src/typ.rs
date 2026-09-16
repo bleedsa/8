@@ -1,5 +1,5 @@
-use std::{collections::HashMap, sync::Mutex};
 use crate::{M::MTy, intern, pre::*};
+use std::{collections::HashMap, sync::Mutex};
 
 type TmpVal = u16;
 static TMP_COUNT: Mutex<TmpVal> = Mutex::new(0);
@@ -29,7 +29,6 @@ impl Name {
             Err(e) => fatal!("Name::tmp(): poisoned mutex: {e}"),
         };
         let v = *G;
-
 
         *G += 1;
         Self::Tmp(v)

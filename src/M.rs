@@ -1,9 +1,4 @@
-use crate::{
-    pre::*,
-    fun::Fun,
-    tup::Tup,
-    verb::pre::*,
-};
+use crate::{fun::Fun, pre::*, tup::Tup, verb::pre::*};
 use std::{fmt, mem::ManuallyDrop as MD, rc::Rc};
 
 pub mod err;
@@ -24,15 +19,19 @@ impl fmt::Display for MTy {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use MTy::*;
 
-        write!(f, "`{}", match self {
-            Int => "i",
-            Flt => "f",
-            Chr => "c",
-            Dyd => "v",
-            Mon => "u",
-            Fun => "o",
-            Tup => "t",
-        })
+        write!(
+            f,
+            "`{}",
+            match self {
+                Int => "i",
+                Flt => "f",
+                Chr => "c",
+                Dyd => "v",
+                Mon => "u",
+                Fun => "o",
+                Tup => "t",
+            }
+        )
     }
 }
 

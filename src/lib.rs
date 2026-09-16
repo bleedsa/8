@@ -13,14 +13,15 @@ use std::{error::Error, fmt};
 
 pub mod M;
 pub mod asm;
+pub mod enums;
+pub mod fun;
 pub mod intern;
 pub mod mem;
 pub mod simd;
-pub mod vm;
-pub mod fun;
 pub mod tup;
-pub mod verb;
 pub mod typ;
+pub mod verb;
+pub mod vm;
 
 pub mod pre {
     pub use crate::{
