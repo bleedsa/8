@@ -16,8 +16,15 @@ name = "8"
 path = "src/main.rs"
 test = false
 
+[[bench]]
+name = "iota"
+harness = false
+
 [dependencies]
 asm-rs = { version = "0.2.0", features = ["x86_64"], default-features = false }
 dtor = "1.0.6"
 libc = "0.2.189"
 xxx = { git = "https://github.com/bleedsa/xxx", branch = "2.0" }
+
+[dev-dependencies]
+criterion = "0.8.2"

@@ -1,7 +1,4 @@
-use crate::{
-    M::MTy,
-    verb::{Dyds, Mons},
-};
+use crate::{M::MTy, verb::pre::*};
 use std::{error::Error, fmt};
 
 #[derive(Copy, Clone, PartialEq)]
