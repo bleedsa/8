@@ -1,4 +1,4 @@
-use crate::{M::M, enums::pre::*, pre::*, simd::Ixmm_t};
+use crate::{M::M, enums::pre::*, pre::*, simd::{Iymm_t, Ixmm_t}};
 use std::{
     intrinsics::simd::{simd_add, simd_splat},
     mem::MaybeUninit,
@@ -7,22 +7,38 @@ use std::{
 };
 
 pub fn iota(n: usize) -> *mut I {
+    let n_div_8 = n / 8;
     let n_div_4 = n / 4;
 
     /* ptrs to write against */
     let ptr: *mut I = unsafe { xxx::new(n).expect("oom") };
+    let ymm = ptr as *mut Iymm_t;
     let xmm = ptr as *mut Ixmm_t;
-    
-    /* simd vecs */
-    let f: Ixmm_t = unsafe { simd_splat(4) };
-    const BASE: *const Ixmm_t = [0, 1, 2, 3].as_ptr() as *const Ixmm_t;
-    let mut v = unsafe { ptr::read_unaligned(BASE) };
-    
+
+    /* ymm vecs */
+    const BASEY: *const Iymm_t =
+        [0, 1, 2, 3, 4, 5, 6, 7, 8].as_ptr() as *const Iymm_t;
+    let fy: Iymm_t = unsafe { simd_splat(8) };
+    let mut vy = unsafe { ptr::read_unaligned(BASEY) };
+
+    const BASEX: *const Ixmm_t = BASEY as *const Ixmm_t;
+    let fx: Ixmm_t = unsafe { simd_splat(4) };
+    let mut vx = unsafe { ptr::read_unaligned(BASEX) };
+
     /* vectorize */
-    for i in 0..n_div_4 {
+    for i in 0..n_div_8 {
         unsafe {
-            ptr::write_unaligned(xmm.add(i), v);
-            v = simd_add(v, f);
+            ptr::write_unaligned(ymm.add(i), vy);
+            vy = simd_add(vy, fy);
+        }
+    }
+
+    unsafe {
+        let last = n_div_8 * 2;
+        let rest = xmm.add(last);
+        for i in 0..(n % 8) / 4 {
+            ptr::write_unaligned(rest.add(i), vx);
+            vx = simd_add(vx, fx);
         }
     }
 

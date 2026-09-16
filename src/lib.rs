@@ -21,9 +21,9 @@ pub mod mem;
 pub mod simd;
 pub mod tup;
 pub mod typ;
+pub mod vec;
 pub mod verb;
 pub mod vm;
-pub mod vec;
 
 pub mod pre {
     pub use crate::{

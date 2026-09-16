@@ -1,5 +1,5 @@
-use std::{fmt::Debug, rc::Rc};
 use crate::pre::*;
+use std::{fmt::Debug, rc::Rc};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct A<X>(pub Rc<[X]>)

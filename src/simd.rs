@@ -11,3 +11,7 @@ pub struct ymm_t([u8; 32]);
 #[derive(Copy, Clone)]
 #[repr(simd)]
 pub struct Ixmm_t([I; 4]);
+
+#[derive(Copy, Clone)]
+#[repr(simd)]
+pub struct Iymm_t([I; 8]);

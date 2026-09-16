@@ -1,8 +1,8 @@
 #![allow(non_snake_case)]
 
-use std::{ptr, hint::black_box};
 use criterion::{Criterion, criterion_group, criterion_main};
 use eight::{pre::*, verb::mon::iota};
+use std::{hint::black_box, ptr};
 
 fn naive_iota(n: usize) -> *const I {
     let ptr: *mut I = unsafe { xxx::new(n).unwrap() };
@@ -18,14 +18,18 @@ fn naive_iota(n: usize) -> *const I {
 
 fn criterion_bench(c: &mut Criterion) {
     let mut B = |N: &str, n: usize| {
-        c.bench_function(N, |b| b.iter(|| {
-            let ptr = iota(black_box(n));
-            unsafe { xxx::free(ptr as *mut I, n) };
-        }));
-        c.bench_function(&format!("[naive] {}", N), |b| b.iter(|| {
-            let ptr = naive_iota(black_box(n));
-            unsafe { xxx::free(ptr as *mut I, n) };
-        }));
+        c.bench_function(N, |b| {
+            b.iter(|| {
+                let ptr = iota(black_box(n));
+                unsafe { xxx::free(ptr as *mut I, n) };
+            })
+        });
+        c.bench_function(&format!("[naive] {}", N), |b| {
+            b.iter(|| {
+                let ptr = naive_iota(black_box(n));
+                unsafe { xxx::free(ptr as *mut I, n) };
+            })
+        });
     };
 
     B("small", 100);

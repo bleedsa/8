@@ -1,5 +1,9 @@
-use crate::{fun::Fun, pre::*, tup::Tup, verb::pre::*, vec::A};
-use std::{fmt::{self, Debug}, mem::ManuallyDrop as MD, rc::Rc};
+use crate::{fun::Fun, pre::*, tup::Tup, vec::A, verb::pre::*};
+use std::{
+    fmt::{self, Debug},
+    mem::ManuallyDrop as MD,
+    rc::Rc,
+};
 
 pub mod err;
 
@@ -36,7 +40,7 @@ impl fmt::Display for MTy {
                 Mon => "u",
                 Fun => "o",
                 Tup => "t",
-           }
+            }
         )
     }
 }
@@ -306,7 +310,7 @@ mod test {
         let y: A<I> = y.to();
         assert_eq!(x, y);
 
-        let x: A<F> = vec![1., 2., 3., 4., 5.,].to();
+        let x: A<F> = vec![1., 2., 3., 4., 5.].to();
         let y: M = x.clone().to();
         let y: A<F> = y.to();
         assert_eq!(x, y);
