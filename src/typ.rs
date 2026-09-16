@@ -1,9 +1,10 @@
-use std::sync::Mutex;
+use std::{collections::HashMap, sync::Mutex};
 use crate::{M::MTy, intern, pre::*};
 
 type TmpVal = u16;
 static TMP_COUNT: Mutex<TmpVal> = Mutex::new(0);
 
+#[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(u8)]
 pub enum Name {
     Tmp(TmpVal),
@@ -35,10 +36,18 @@ impl Name {
     }
 }
 
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Typ {
     Var(Name),
-    ETVar(&'static str),
     Arrow(&'static Typ, &'static Typ),
-    Forall(Name, &'static Typ),
     Atom(MTy),
 }
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct TypVar(pub &'static str);
+
+#[derive(Copy, Clone, Debug, PartialEq, Hash)]
+pub struct TermVar(pub &'static str);
+
+//#[derive(Clone, Debug, PartialEq)]
+//pub struct Env(pub HashMap<TermVar, Scheme>);
