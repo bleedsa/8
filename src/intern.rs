@@ -1,4 +1,3 @@
-use crate::{M::M, fun::Arg};
 use dtor::dtor;
 use std::{
     cell::UnsafeCell, hint::unlikely, marker::PhantomData, mem::ManuallyDrop,
@@ -137,11 +136,11 @@ macro_rules! SIntern_mods {
             pub mod $m {
                 use super::*;
 
-                pub static mut TABLE: ManuallyDrop<SIntern<$T>> = ManuallyDrop::new(SIntern::new());
+                pub(crate) static mut TABLE: ManuallyDrop<SIntern<$T>> = ManuallyDrop::new(SIntern::new());
 
-                pub fn add(x: $T) -> &'static $T {
+                pub(crate) fn add(x: $T) -> &'static $T {
                     unsafe {
-                        (&mut *&raw mut TABLE).add(x)
+                        (*&raw mut TABLE).add(x)
                     }
                 }
 
@@ -149,6 +148,14 @@ macro_rules! SIntern_mods {
                 fn addtest() {
                     let p = add(<$T>::new());
                     assert_eq!(p, &<$T>::new());
+                }
+
+                #[test]
+                fn grow() {
+                    for _ in 0..100 {
+                        let p = add(<$T>::new());
+                        assert_eq!(p, &<$T>::new());
+                    }
                 }
             }
         )*
@@ -164,6 +171,4 @@ macro_rules! SIntern_mods {
 
 SIntern_mods![
     static str: String;
-    static ms: Vec<M>;
-    static args: Vec<Arg>;
 ];

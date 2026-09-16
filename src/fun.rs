@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{rc::Rc, fmt};
 use crate::{intern, M::{MTy, M}};
 
 #[derive(Copy, Clone, PartialEq)]
@@ -10,10 +10,10 @@ impl<'a> fmt::Debug for Arg<'a> {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Fun {
-    pub args: &'static [Arg<'static>],
-    pub body: &'static [M],
+    pub args: Rc<[Arg<'static>]>,
+    pub body: Rc<[M]>,
 }
 
 impl Fun {
@@ -23,12 +23,11 @@ impl Fun {
     {
         let args = args.iter()
             .map(|(n, t)| Arg(intern::str::add(n.to_string()), *t))
-            .collect();
-        let args = intern::args::add(args);
-        let body = intern::ms::add(body);
+            .collect::<Vec<_>>()
+            .into();
         Self {
             args,
-            body,
+            body: body.into(),
         }
     }
 }
