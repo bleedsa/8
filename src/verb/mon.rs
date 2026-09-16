@@ -37,7 +37,7 @@ pub fn iota(n: usize) -> *mut I {
         let last = n_div_8 * 2;
         let rest = xmm.add(last);
         for i in 0..(n % 8) / 4 {
-            ptr::write_unaligned(rest.add(i), vx);
+            ptr::write(rest.add(i), vx);
             vx = simd_add(vx, fx);
         }
     }
