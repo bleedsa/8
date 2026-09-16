@@ -2,7 +2,7 @@ use std::rc::Rc;
 use crate::M::M;
 
 pub mod pre {
-    pub use super::{Dyds, Mons, Op, Dyd};
+    pub use super::{Dyds, Mons, Mon, Dyd};
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -17,15 +17,16 @@ pub enum Mons {
     Iota,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub enum Op {
-    Dyd(Dyds),
-    Mon(Mons),
+#[derive(Clone, Debug, PartialEq)]
+pub struct Dyd {
+    v: Dyds,
+    x: Rc<M>,
+    y: Rc<M>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Dyd {
-    op: Op,
+pub struct Mon {
+    v: Mons,
     x: Rc<M>,
     y: Rc<M>,
 }
