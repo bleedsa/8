@@ -1,3 +1,4 @@
+use crate::pre::*;
 use dtor::dtor;
 use std::{
     cell::UnsafeCell, hint::unlikely, marker::PhantomData, mem::ManuallyDrop,
@@ -103,15 +104,13 @@ impl<'a, X> Drop for Intern<'a, X> {
 }
 
 pub struct SIntern<X> {
-    pub tab: ManuallyDrop<UnsafeCell<Intern<'static, X>>>,
-    pub lock: ManuallyDrop<Mutex<()>>,
+    pub lock: Mutex<UnsafeCell<Intern<'static, X>>>,
 }
 
 impl<X> SIntern<X> {
     pub const fn new() -> Self {
         Self {
-            tab: ManuallyDrop::new(Intern::new().into()),
-            lock: ManuallyDrop::new(Mutex::new(())),
+            lock: Mutex::new(Intern::new().into()),
         }
     }
 
@@ -120,10 +119,13 @@ impl<X> SIntern<X> {
         'a: 'static,
         X: PartialEq,
     {
-        let d = self.lock.lock();
-        let r = (*self.tab.get_mut()).add(x);
-        drop(d);
-        r
+        let mut d = match self.lock.lock() {
+            Ok(x) => x,
+            Err(e) => fatal!("SIntern::add(): poisoned mutex: {e}"),
+        };
+
+        let p = (*d).get_mut();
+        unsafe { (&mut *&raw mut *p).add(x) }
     }
 }
 
