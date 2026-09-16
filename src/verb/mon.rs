@@ -15,9 +15,9 @@ pub fn iota(n: usize) -> *mut I {
     
     /* simd vecs */
     let f: Ixmm_t = unsafe { simd_splat(4) };
-    let v = [0, 1, 2, 3].as_ptr() as *const Ixmm_t;
-    let mut v = unsafe { ptr::read_unaligned(v) };
-
+    const BASE: *const Ixmm_t = [0, 1, 2, 3].as_ptr() as *const Ixmm_t;
+    let mut v = unsafe { ptr::read_unaligned(BASE) };
+    
     /* vectorize */
     for i in 0..n_div_4 {
         unsafe {
