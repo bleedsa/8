@@ -19,7 +19,7 @@ test = false
 [[bench]]
 name = "iota"
 harness = false
-path = "perf/iota.rs"
+path = "run/iota.rs"
 
 [dependencies]
 asm-rs = { version = "0.2.0", features = ["x86_64"], default-features = false }
