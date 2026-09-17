@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 
 use criterion::{Criterion, criterion_group, criterion_main};
-use eight::{pre::*, verb::mon::iota};
+use eight::{pre::*, verb::mon::raw_iota};
 use std::{hint::black_box, ptr};
 
 fn naive_iota(n: usize) -> *const I {
