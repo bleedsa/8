@@ -1,25 +1,18 @@
-use crate::{asm::ExePage, pre::*};
+use std::rc::Rc;
+use crate::{M::MTy, asm::ExePage};
 
-pub struct Fun<'m> {
-    /** reference to the start of the generated page */
-    pub fun_ptr: &'m u8,
-    /** function name */
-    pub name: &'static str,
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct FunPtr<'m> {
+    pub name: Option<&'static str>,
+    pub args: &'m [MTy],
+    pub ret: MTy,
 }
 
-impl<'m> Fun<'m> {
-    pub fn new(exe: &'m ExePage, name: &'static str) -> R<Self> {
-        Ok(Self {
-            fun_ptr: exe.fun_ptr(name)?,
-            name,
-        })
-    }
-}
-
+#[derive(Clone)]
 pub struct VM<'m> {
-    pub pages: Vec<ExePage>,
+    pub pages: Vec<Rc<ExePage>>,
     /** array of compiled functions */
-    pub funs: Vec<Fun<'m>>,
+    pub funs: Vec<FunPtr<'m>>,
 }
 
 impl<'m> VM<'m> {
@@ -30,9 +23,9 @@ impl<'m> VM<'m> {
         }
     }
 
-    pub fn add_page(&'m mut self, exe: ExePage) -> &'m ExePage {
-        self.pages.push(exe);
-        let r: &'m _ = &self.pages[self.pages.len() - 1];
+    pub fn add_page(&'m mut self, exe: ExePage) -> Rc<ExePage> {
+        self.pages.push(exe.into());
+        let r = (&self.pages[self.pages.len() - 1]).clone();
         r
     }
 }
@@ -66,7 +59,7 @@ macro_rules! mkasmfuns {
             let asm: Asm = $a.emit_fun::<${count($t)}, _, _>(n, $x)?;
 
             /* get the exec page */
-            let exe: &'m ExePage = vm.add_page(asm.exe()?);
+            let exe: Rc<ExePage> = vm.add_page(asm.exe()?);
 
             /* setup the page */
             let fun: &'m _ = unsafe { fun!(exe, fn($($t),*) -> $r = n) };
@@ -81,6 +74,7 @@ macro_rules! mkasmfuns {
 #[cfg(not(miri))]
 mod nomiri {
     use super::*;
+    use crate::pre::*;
 
     #[test]
     fn basic_asm_fun() -> R<()> {

@@ -12,8 +12,10 @@
 
 use std::{error::Error, fmt};
 
+pub mod A;
 pub mod M;
 pub mod asm;
+pub mod cmp;
 pub mod enums;
 pub mod fun;
 pub mod intern;
@@ -21,7 +23,6 @@ pub mod mem;
 pub mod simd;
 pub mod tup;
 pub mod typ;
-pub mod vec;
 pub mod verb;
 pub mod vm;
 

@@ -1,4 +1,4 @@
-use crate::{fun::Fun, pre::*, tup::Tup, vec::A, verb::pre::*};
+use crate::{A::A, fun::Fun, pre::*, tup::Tup, verb::pre::*};
 use std::{
     fmt::{self, Debug},
     mem::ManuallyDrop as MD,

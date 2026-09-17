@@ -1,10 +1,10 @@
 use crate::{
+    A::A,
     M::{M, MTy},
     enums::pre::*,
     err_verb,
     pre::*,
     simd::{Ixmm_t, Iymm_t},
-    vec::A,
     verb::err::VerbErr,
 };
 use std::{
