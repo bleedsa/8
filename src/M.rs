@@ -270,6 +270,8 @@ macro_rules! M_to_impls_vecs {
 
 M_to_impls_vecs![
     INT => I => I,
+    FLT => F => F,
+    CHR => C => C,
 ];
 
 impl To<M> for &M {
@@ -281,6 +283,17 @@ impl To<M> for &M {
 impl To<M> for M {
     fn to(self) -> M {
         self
+    }
+}
+
+impl M {
+    pub fn a<X>(&self) -> A<X>
+    where
+        X: Clone + Debug + PartialEq,
+        for<'a> &'a M: To<A<X>>,
+    {
+        let v: A<X> = self.to();
+        v.clone()
     }
 }
 
