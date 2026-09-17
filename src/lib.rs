@@ -33,6 +33,7 @@ pub mod pre {
         Pos, R, To, fatal, fun,
         mem::memcpy,
         simd::{xmm_t, ymm_t},
+        err_verb, err_cmp,
     };
 }
 

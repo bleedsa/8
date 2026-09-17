@@ -1,7 +1,7 @@
 use crate::pre::*;
-use std::{fmt::Debug, ops::Index, rc::Rc};
+use std::{fmt::Debug, ops::Index, rc::Rc, hash::{Hash, Hasher}};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct A<X>(pub Rc<[X]>)
 where
     X: Clone + Debug + PartialEq;
@@ -42,5 +42,17 @@ where
     #[inline(always)]
     fn index(&self, idx: usize) -> &Self::Output {
         &self.0[idx]
+    }
+}
+
+impl<X> Hash for A<X>
+where
+    X: Clone + Debug + PartialEq + Hash,
+{
+    fn hash<H>(&self, s: &mut H)
+    where
+        H: Hasher,
+    {
+        (&*self.0).hash(s)
     }
 }

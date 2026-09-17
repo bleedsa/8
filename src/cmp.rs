@@ -1,10 +1,12 @@
 use std::{hint::likely, rc::Rc};
-use crate::{M::M, vm::VM};
+use crate::{M::M, vm::VM, pre::*};
+
+pub mod err;
 
 type Tape<'m> = &'m [Rc<M>];
 
 pub struct Cmp<'m> {
-    pub vm: &'m VM<'m>,
+    pub vm: &'m mut VM<'m>,
     pub tape: Tape<'m>,
     pub i: usize,
 }
@@ -27,11 +29,21 @@ impl<'m> Iterator for Cmp<'m> {
 
 impl<'m> Cmp<'m> {
     #[inline(always)]
-    pub fn new(vm: &'m VM<'m>, tape: Tape<'m>) -> Self {
+    pub fn new(vm: &'m mut VM<'m>, tape: Tape<'m>) -> Self {
         Self {
             vm,
             tape,
             i: 0,
         }
+    }
+
+    pub fn cmp(&mut self) -> R<()> {
+        for m in self {
+            match m.ty {
+                _ => return err_cmp!(CantCmpTy((*m).clone())),
+            }
+        }
+
+        Ok(())
     }
 }

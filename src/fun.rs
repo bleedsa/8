@@ -15,22 +15,22 @@ impl<'a> fmt::Debug for Arg<'a> {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Fun {
-    pub args: Rc<[Arg<'static>]>,
+    pub arrows: Rc<[Arg<'static>]>,
     pub body: Rc<[M]>,
 }
 
 impl Fun {
-    pub fn new<N>(args: Vec<(N, MTy)>, body: Vec<M>) -> Self
+    pub fn new<N>(arrows: Vec<(N, MTy)>, body: Vec<M>) -> Self
     where
         N: ToString,
     {
-        let args = args
+        let arrows = arrows
             .iter()
             .map(|(n, t)| Arg(intern::str::add(n.to_string()), *t))
             .collect::<Vec<_>>()
             .into();
         Self {
-            args,
+            arrows,
             body: body.into(),
         }
     }
