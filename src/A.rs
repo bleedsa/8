@@ -1,3 +1,7 @@
+/*!
+ * static, refcounted vectors
+ */
+
 use crate::pre::*;
 use std::{fmt::Debug, ops::Index, rc::Rc, hash::{Hash, Hasher}};
 

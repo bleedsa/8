@@ -1,3 +1,7 @@
+/*!
+ * executable virtual machine
+ */
+
 use std::rc::Rc;
 use crate::{M::MTy, asm::ExePage};
 

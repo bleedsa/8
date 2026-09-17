@@ -1,3 +1,7 @@
+/*!
+ * jit compilation
+ */
+
 use std::{hint::likely, rc::Rc};
 use crate::{M::M, vm::VM, pre::*};
 

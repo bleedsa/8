@@ -1,3 +1,7 @@
+/*!
+ * "verbs" in the APL sense.
+ */
+
 pub mod pre {
     pub use crate::verb::{
         dyd::{Dyd, Dyds},

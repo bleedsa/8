@@ -1,3 +1,7 @@
+/*!
+ *  M::M function repr.
+ */
+
 use crate::{
     M::{M, MTy},
     intern,

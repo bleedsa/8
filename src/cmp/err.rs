@@ -25,6 +25,6 @@ impl fmt::Display for CmpErr {
 #[macro_export]
 macro_rules! err_cmp {
     ($e:ident($($x:expr),*$(,)*)) => {{
-        Err(Box::new($crate::cmp::err::CmpErr::$e($($x),*)))
+        $crate::E!($crate::cmp::err::CmpErr::$e($($x),*))
     }};
 }

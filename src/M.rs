@@ -1,3 +1,7 @@
+/*!
+ * vm object type and related
+ */
+
 use crate::{A::A, fun::Fun, pre::*, tup::Tup, verb::pre::*};
 use std::{
     fmt::{self, Debug},

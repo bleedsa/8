@@ -1,3 +1,7 @@
+/*!
+ *  typeclasses.
+ */
+
 use std::collections::HashMap;
 use crate::{typ::{Pred, Name, Typ}, A::A, fun::Fun, M::M};
 
@@ -23,7 +27,7 @@ pub struct Instance {
     pub methods: HashMap<Name, Fun>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Default)]
 pub struct Classes {
     pub classes: HashMap<Name, Class>,
     pub methods: HashMap<Name, Name>,

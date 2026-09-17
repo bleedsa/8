@@ -1,3 +1,7 @@
+/*!
+ * assembler & executable memory pages.
+ */
+
 use asm_rs::{Arch, Assembler, AssemblyResult};
 
 use crate::{

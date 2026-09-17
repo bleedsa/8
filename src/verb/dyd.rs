@@ -1,3 +1,7 @@
+/*!
+ * dyadic verbs.
+ */
+
 use crate::{
     M::{M, MTy},
     enums::pre::*,

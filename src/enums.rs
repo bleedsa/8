@@ -1,3 +1,7 @@
+/*!
+ * enumeration supplements.
+ */
+
 pub mod pre {
     pub use crate::{enum_jmps, enums::EnumJmpTab};
     pub use std::ops::Index;
@@ -5,6 +9,7 @@ pub mod pre {
 
 pub struct EnumJmpTab<T, const Z: usize>(pub [T; Z]);
 
+/** make an enum with function jump tables */
 #[macro_export]
 macro_rules! enum_jmps {
     {

@@ -1,3 +1,7 @@
+/*!
+ * assorted memory functions
+ */
+
 use libc::{
     MAP_ANONYMOUS, MAP_PRIVATE, PROT_EXEC, PROT_READ, PROT_WRITE, c_void,
     size_t,

@@ -1,3 +1,7 @@
+/*!
+ * static str & etc internment tables
+ */
+
 use crate::pre::*;
 use dtor::dtor;
 use std::{

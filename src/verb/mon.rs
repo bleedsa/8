@@ -1,3 +1,7 @@
+/*!
+ * monadic verbs
+ */
+
 use crate::{
     A::A,
     M::{M, MTy},

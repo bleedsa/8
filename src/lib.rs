@@ -26,6 +26,7 @@ pub mod typ;
 pub mod verb;
 pub mod vm;
 
+/** prelude */
 pub mod pre {
     pub use crate::{
         C, E, F, I,
@@ -37,10 +38,17 @@ pub mod pre {
     };
 }
 
+/*
+ * basic primitive object types
+ */
+/** int */
 pub type I = i32;
-pub type F = f64;
+/** float */
+pub type F = f64; 
+/** char */
 pub type C = char;
 
+/** `Result<T, Box<dyn Error>>` ie any error */
 pub type R<T> = Result<T, Box<dyn Error>>;
 
 /** wrap an R error */

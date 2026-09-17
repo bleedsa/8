@@ -1,3 +1,7 @@
+/*!
+ * structs that use `#[repr(simd)]`.
+ */
+
 use crate::pre::*;
 
 #[derive(Copy, Clone)]
