@@ -20,7 +20,7 @@ fn criterion_bench(c: &mut Criterion) {
     let mut B = |N: &str, n: usize| {
         c.bench_function(N, |b| {
             b.iter(|| {
-                let ptr = iota(black_box(n));
+                let ptr = raw_iota(black_box(n));
                 unsafe { xxx::free(ptr as *mut I, n) };
             })
         });
