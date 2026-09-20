@@ -69,18 +69,18 @@ enum_jmps! {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Dyd {
     pub v: Dyds,
-    pub x: Rc<M>,
-    pub y: Rc<M>,
+    pub x: Option<Rc<M>>,
+    pub y: Option<Rc<M>>,
 }
 
 #[macro_export]
 macro_rules! V {
     ($v:expr, $x:expr, $y:expr) => {{
-        use $crate::{To, verb::dyd::Dyd, M::M};
+        use $crate::{M::M, To, verb::dyd::Dyd};
         To::<Rc<M>>::to(Into::<Rc<Dyd>>::into(Dyd {
             v: $v,
-            x: To::<M>::to($x).into(),
-            y: To::<M>::to($y).into(),
+            x: $x.map(|x| To::<M>::to(x).into()),
+            y: $y.map(|y| To::<M>::to(y).into()),
         }))
     }};
 }

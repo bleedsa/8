@@ -7,15 +7,13 @@
  */
 
 use crate::{
-    A::A,
     M::{M, MTy},
-    typ::{err::TypErr, name::Name},
-    verb::{mon::Mons, dyd::Dyds},
-    err_typ,
+    err_typ, intern,
     pre::*,
-    intern,
+    typ::err::TypErr,
+    verb::{dyd::Dyds, mon::Mons},
 };
-use std::{collections::HashMap, sync::LazyLock, rc::Rc};
+use std::{collections::HashMap, rc::Rc, sync::LazyLock};
 
 pub mod err;
 pub mod name;
@@ -76,36 +74,50 @@ pub fn typ_of(m: Rc<M>) -> R<&'static Typ> {
         | MTy::FLT
         | MTy::CHR) => Typ::Atom(t),
 
-        MTy::Dyd => {
-            unsafe {
-                let v = m.val.v.v;
-                let x = typ_of(m.val.v.x.clone())?;
-                let y = typ_of(m.val.v.y.clone())?;
-                if x == &Dyn || y == &Dyn {
-                    Dyn
-                } else {
-                    *(*DYD_SIGS)
-                        .get(&(v, x, y))
-                        .copied()
-                        .ok_or(Box::new(TypErr::DydNyi(v, *x, *y)))?
-                }
-            }
-        }
+        MTy::Dyd => unsafe {
+            /* snag */
+            let v = m.val.v.v;
+            let x = m.val.v.x.clone();
+            let y = m.val.v.y.clone();
 
-        MTy::Mon => {
-            unsafe {
-                let v = m.val.u.v;
-                let x = typ_of(m.val.u.x.clone())?;
-                if x == &Dyn {
-                    Dyn
-                } else {
-                    *(*MON_SIGS)
-                        .get(&(v, x))
-                        .copied()
-                        .ok_or(Box::new(TypErr::MonNyi(v, *x)))?
-                } 
+            /* project */
+            if x.is_none() {
+                todo!()
             }
-        }
+            if y.is_none() {
+                todo!()
+            }
+
+            /* typeof each */
+            let x = typ_of(x.unwrap_unchecked())?;
+            let y = typ_of(y.unwrap_unchecked())?;
+
+            /* fetch overload return type */
+            *(*DYD_SIGS)
+                .get(&(v, x, y))
+                .copied()
+                .ok_or(Box::new(TypErr::DydNyi(v, *x, *y)))?
+        },
+
+        MTy::Mon => unsafe {
+            /* snag */
+            let v = m.val.u.v;
+            let x = m.val.u.x.clone();
+
+            /* project */
+            if x.is_none() {
+                todo!()
+            }
+
+            /* typeof arg */
+            let x = typ_of(x.unwrap_unchecked())?;
+
+            /* fetch overload return type */
+            *(*MON_SIGS)
+                .get(&(v, x))
+                .copied()
+                .ok_or(Box::new(TypErr::MonNyi(v, *x)))?
+        },
 
         t => err_typ!(Nyi(t))?,
     }))
@@ -114,7 +126,12 @@ pub fn typ_of(m: Rc<M>) -> R<&'static Typ> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{verb::dyd::Dyds, V, verb::mon::Mons, U, M::{M, MTy}};
+    use crate::{
+        M::{M, MTy},
+        U, V,
+        verb::dyd::Dyds,
+        verb::mon::Mons,
+    };
 
     #[test]
     fn typ_of_dyds() {

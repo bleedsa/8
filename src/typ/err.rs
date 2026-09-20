@@ -1,4 +1,8 @@
-use crate::{M::MTy, verb::{mon::Mons, dyd::Dyds}, typ::{Typ, name::Name}};
+use crate::{
+    M::MTy,
+    typ::Typ,
+    verb::{dyd::Dyds, mon::Mons},
+};
 use std::{error::Error, fmt};
 
 /** type err repr */

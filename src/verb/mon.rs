@@ -116,16 +116,16 @@ enum_jmps! {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Mon {
     pub v: Mons,
-    pub x: Rc<M>,
+    pub x: Option<Rc<M>>,
 }
 
 #[macro_export]
 macro_rules! U {
     ($v:expr, $x:expr) => {{
-        use $crate::{To, M::M, verb::mon::Mon};
+        use $crate::{M::M, To, verb::mon::Mon};
         To::<Rc<M>>::to(Into::<Rc<Mon>>::into(Mon {
             v: $v,
-            x: To::<M>::to($x).into(),
+            x: $x.map(|x| To::<M>::to(x).into()),
         }))
     }};
 }

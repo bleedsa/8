@@ -91,6 +91,7 @@ impl Clone for M {
                 Int => MVal { i: val.i },
                 Flt => MVal { f: val.f },
                 Chr => MVal { c: val.c },
+                Sym => MVal { s: val.s },
                 INT => MVal { I: val.I.clone() },
                 FLT => MVal { F: val.F.clone() },
                 CHR => MVal { C: val.C.clone() },
@@ -98,7 +99,6 @@ impl Clone for M {
                 Mon => MVal { u: val.u.clone() },
                 Fun => MVal { o: val.o.clone() },
                 Tup => MVal { t: val.t.clone() },
-                Sym => MVal { s: val.s.clone() },
                 SYM => MVal { S: val.S.clone() },
             }
         };
