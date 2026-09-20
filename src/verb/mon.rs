@@ -91,7 +91,7 @@ fn mk_raw_iota_ptr() {
 
 enum_jmps! {
     enum Mons
-    derives(Copy, Clone, Debug, PartialEq)
+    derives(Copy, Clone, Debug, PartialEq, Hash, Eq)
     {
         Iota,
     }
@@ -115,9 +115,19 @@ enum_jmps! {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Mon {
-    v: Mons,
-    x: Rc<M>,
-    y: Rc<M>,
+    pub v: Mons,
+    pub x: Rc<M>,
+}
+
+#[macro_export]
+macro_rules! U {
+    ($v:expr, $x:expr) => {{
+        use $crate::{To, M::M, verb::mon::Mon};
+        To::<Rc<M>>::to(Into::<Rc<Mon>>::into(Mon {
+            v: $v,
+            x: To::<M>::to($x).into(),
+        }))
+    }};
 }
 
 #[cfg(test)]
@@ -125,7 +135,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn uneven_iota() {
+    fn eval_iota() {
         let iota = EVAL_MONS[Mons::Iota];
         let vec: A<I> = iota(127.to().into()).unwrap().a();
 

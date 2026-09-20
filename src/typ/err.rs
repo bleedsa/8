@@ -1,8 +1,11 @@
+use crate::{M::MTy, verb::{mon::Mons, dyd::Dyds}, typ::{Typ, name::Name}};
 use std::{error::Error, fmt};
-use crate::typ::name::Name;
 
 /** type err repr */
 pub enum TypErr {
+    Nyi(MTy),
+    DydNyi(Dyds, Typ, Typ),
+    MonNyi(Mons, Typ),
 }
 
 impl Error for TypErr {}
@@ -11,9 +14,11 @@ impl fmt::Debug for TypErr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use TypErr::*;
 
-        write!(f, "'inference: ")?;
+        write!(f, "'typ: ")?;
         match self {
-            _ => todo!()
+            Nyi(t) => write!(f, "nyi: typechecking {t}"),
+            DydNyi(v, x, y) => write!(f, "dyad nyi: {v:?}[{x:?};{y:?}]"),
+            MonNyi(v, x) => write!(f, "monad nyi: {v:?}[{x:?}]"),
         }
     }
 }

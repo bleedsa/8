@@ -34,4 +34,3 @@ macro_rules! err_cmp {
         $crate::E!($crate::cmp::err::CmpErr::$e($($x),*))
     }};
 }
-

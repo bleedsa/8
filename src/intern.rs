@@ -2,7 +2,7 @@
  * static str & etc internment tables
  */
 
-use crate::pre::*;
+use crate::{pre::*, typ::Typ};
 use dtor::dtor;
 use std::{
     cell::UnsafeCell, hint::unlikely, marker::PhantomData, mem::ManuallyDrop,
@@ -177,4 +177,5 @@ macro_rules! SIntern_mods {
 
 SIntern_mods![
     static str: String;
+    static typ: Typ;
 ];

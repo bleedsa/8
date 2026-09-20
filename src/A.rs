@@ -19,7 +19,7 @@ impl<X> A<X>
 where
     X: Clone + Debug + PartialEq,
 {
-    pub fn iter(&self) -> impl Iterator<Item=&X> {
+    pub fn iter(&self) -> impl Iterator<Item = &X> {
         self.0.iter()
     }
 }

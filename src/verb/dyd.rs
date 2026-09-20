@@ -48,7 +48,7 @@ macro_rules! math_dyd {
 
 enum_jmps! {
     enum Dyds
-    derives(Copy, Clone, Debug, PartialEq)
+    derives(Copy, Clone, Debug, PartialEq, Hash, Eq)
     {
         Add,
         Sub,
@@ -68,9 +68,21 @@ enum_jmps! {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Dyd {
-    v: Dyds,
-    x: Rc<M>,
-    y: Rc<M>,
+    pub v: Dyds,
+    pub x: Rc<M>,
+    pub y: Rc<M>,
+}
+
+#[macro_export]
+macro_rules! V {
+    ($v:expr, $x:expr, $y:expr) => {{
+        use $crate::{To, verb::dyd::Dyd, M::M};
+        To::<Rc<M>>::to(Into::<Rc<Dyd>>::into(Dyd {
+            v: $v,
+            x: To::<M>::to($x).into(),
+            y: To::<M>::to($y).into(),
+        }))
+    }};
 }
 
 #[cfg(test)]

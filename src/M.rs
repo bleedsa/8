@@ -14,6 +14,7 @@ pub mod err;
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum MTy {
+    Nil,
     Int,
     Flt,
     Chr,
@@ -24,6 +25,8 @@ pub enum MTy {
     Mon,
     Fun,
     Tup,
+    Sym,
+    SYM,
 }
 
 impl fmt::Display for MTy {
@@ -34,6 +37,7 @@ impl fmt::Display for MTy {
             f,
             "`{}",
             match self {
+                Nil => "0",
                 Int => "i",
                 Flt => "f",
                 Chr => "c",
@@ -44,6 +48,8 @@ impl fmt::Display for MTy {
                 Mon => "u",
                 Fun => "o",
                 Tup => "t",
+                Sym => "s",
+                SYM => "S",
             }
         )
     }
@@ -51,16 +57,19 @@ impl fmt::Display for MTy {
 
 #[repr(C)]
 pub union MVal {
-    i: I,
-    f: F,
-    c: C,
-    I: MD<A<I>>,
-    F: MD<A<F>>,
-    C: MD<A<C>>,
-    v: MD<Rc<Dyd>>,
-    u: MD<Rc<Mon>>,
-    o: MD<Rc<Fun>>,
-    t: MD<Rc<Tup>>,
+    pub nil: (),
+    pub i: I,
+    pub f: F,
+    pub c: C,
+    pub s: &'static str,
+    pub I: MD<A<I>>,
+    pub F: MD<A<F>>,
+    pub C: MD<A<C>>,
+    pub S: MD<A<&'static str>>,
+    pub v: MD<Rc<Dyd>>,
+    pub u: MD<Rc<Mon>>,
+    pub o: MD<Rc<Fun>>,
+    pub t: MD<Rc<Tup>>,
 }
 
 pub struct M {
@@ -78,6 +87,7 @@ impl Clone for M {
 
         let val = unsafe {
             match ty {
+                Nil => MVal { nil: () },
                 Int => MVal { i: val.i },
                 Flt => MVal { f: val.f },
                 Chr => MVal { c: val.c },
@@ -88,6 +98,8 @@ impl Clone for M {
                 Mon => MVal { u: val.u.clone() },
                 Fun => MVal { o: val.o.clone() },
                 Tup => MVal { t: val.t.clone() },
+                Sym => MVal { s: val.s.clone() },
+                SYM => MVal { S: val.S.clone() },
             }
         };
 
@@ -104,6 +116,7 @@ impl Drop for M {
                 INT => MD::drop(&mut self.val.I),
                 FLT => MD::drop(&mut self.val.F),
                 CHR => MD::drop(&mut self.val.C),
+                SYM => MD::drop(&mut self.val.S),
                 Dyd => MD::drop(&mut self.val.v),
                 Mon => MD::drop(&mut self.val.u),
                 Fun => MD::drop(&mut self.val.o),
@@ -123,12 +136,13 @@ impl fmt::Debug for M {
             [$($i:ident => $t:ty),* $(,)*] => {{
                 match self.ty {
                     $(MTy::$i => write!(f, "{:?}", To::<$t>::to(self))),*,
+                    MTy::Nil => write!(f, "0N"),
                 }
             }};
         }
         atoms![
-            Int => I, Flt => F, Chr => C,
-            INT => A<I>, FLT => A<F>, CHR => A<C>,
+            Int => I, Flt => F, Chr => C, Sym => &'static str,
+            INT => A<I>, FLT => A<F>, CHR => A<C>, SYM => A<&'static str>,
             Dyd => Rc<Dyd>, Mon => Rc<Mon>,
             Fun => Rc<Fun>, Tup => Rc<Tup>,
         ]
@@ -152,8 +166,9 @@ impl PartialEq<M> for M {
             }};
         }
         atoms![
-            Int => I, Flt => F, Chr => C,
-            INT => A<I>, FLT => A<F>, CHR => A<C>,
+            Nil => (),
+            Int => I, Flt => F, Chr => C, Sym => &'static str,
+            INT => A<I>, FLT => A<F>, CHR => A<C>, SYM => A<&'static str>,
             Dyd => Rc<Dyd>, Mon => Rc<Mon>,
             Fun => Rc<Fun>, Tup => Rc<Tup>
         ];
@@ -197,9 +212,11 @@ macro_rules! M_to_impls_simple {
 }
 
 M_to_impls_simple![
+    Nil => () => nil,
     Int => I => i,
     Flt => F => f,
     Chr => C => c,
+    Sym => &'static str => s,
 ];
 
 macro_rules! M_to_impls_md {
@@ -232,6 +249,18 @@ macro_rules! M_to_impls_md {
                 }
             }
         }
+
+        impl To<Rc<M>> for $r {
+            fn to(self) -> Rc<M> {
+                M {
+                    ty: MTy::$ty,
+                    pos: Pos::default(),
+                    val: MVal {
+                        $p: MD::<Self>::new(self),
+                    }
+                }.into()
+            }
+        }
         )*
     };
 }
@@ -240,6 +269,7 @@ M_to_impls_md![
     INT => A<I> => I,
     FLT => A<F> => F,
     CHR => A<C> => C,
+    SYM => A<&'static str> => S,
     Dyd => Rc<Dyd> => v,
     Mon => Rc<Mon> => u,
     Fun => Rc<Fun> => o,
@@ -287,6 +317,12 @@ impl To<M> for &M {
 impl To<M> for M {
     fn to(self) -> M {
         self
+    }
+}
+
+impl To<M> for Rc<M> {
+    fn to(self) -> M {
+        (*self).clone()
     }
 }
 
