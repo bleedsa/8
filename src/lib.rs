@@ -31,10 +31,9 @@ pub mod pre {
     pub use crate::{
         C, E, F, I,
         M::err::MErr,
-        Pos, R, To, fatal, fun,
+        Pos, R, To, err_cmp, err_verb, fatal, fun,
         mem::memcpy,
         simd::{xmm_t, ymm_t},
-        err_verb, err_cmp,
     };
 }
 
@@ -44,7 +43,7 @@ pub mod pre {
 /** int */
 pub type I = i32;
 /** float */
-pub type F = f64; 
+pub type F = f64;
 /** char */
 pub type C = char;
 

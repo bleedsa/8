@@ -1,5 +1,5 @@
-use std::sync::Mutex;
 use crate::{intern, pre::*};
+use std::sync::Mutex;
 
 /** type variable names */
 

@@ -2,8 +2,8 @@
  * jit compilation
  */
 
+use crate::{M::M, pre::*, vm::VM};
 use std::{hint::likely, rc::Rc};
-use crate::{M::M, vm::VM, pre::*};
 
 pub mod err;
 
@@ -34,11 +34,7 @@ impl<'m> Iterator for Cmp<'m> {
 impl<'m> Cmp<'m> {
     #[inline(always)]
     pub fn new(vm: &'m mut VM<'m>, tape: Tape<'m>) -> Self {
-        Self {
-            vm,
-            tape,
-            i: 0,
-        }
+        Self { vm, tape, i: 0 }
     }
 
     pub fn cmp(&mut self) -> R<()> {
