@@ -2,7 +2,7 @@
  * vm object type and related
  */
 
-use crate::{A::A, fun::Fun, pre::*, tup::Tup, verb::pre::*};
+use crate::{A::A, fun::Fun, pre::*, tup::Tup, verb::pre::*, typ::Typ};
 use std::{
     fmt::{self, Debug},
     mem::ManuallyDrop as MD,
@@ -11,6 +11,9 @@ use std::{
 
 pub mod err;
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct Let(pub A<C>, pub Option<Typ>, pub Rc<M>);
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum MTy {
@@ -18,15 +21,16 @@ pub enum MTy {
     Int,
     Flt,
     Chr,
+    Sym,
     INT,
     FLT,
+    SYM,
     CHR,
     Dyd,
     Mon,
     Fun,
     Tup,
-    Sym,
-    SYM,
+    Let,
 }
 
 impl fmt::Display for MTy {
@@ -50,6 +54,7 @@ impl fmt::Display for MTy {
                 Tup => "t",
                 Sym => "s",
                 SYM => "S",
+                Let => "let",
             }
         )
     }
@@ -66,6 +71,7 @@ pub union MVal {
     pub F: MD<A<F>>,
     pub C: MD<A<C>>,
     pub S: MD<A<&'static str>>,
+    pub l: MD<Rc<Let>>,
     pub v: MD<Rc<Dyd>>,
     pub u: MD<Rc<Mon>>,
     pub o: MD<Rc<Fun>>,
@@ -100,6 +106,7 @@ impl Clone for M {
                 Fun => MVal { o: val.o.clone() },
                 Tup => MVal { t: val.t.clone() },
                 SYM => MVal { S: val.S.clone() },
+                Let => MVal { l: val.l.clone() },
             }
         };
 
@@ -121,6 +128,7 @@ impl Drop for M {
                 Mon => MD::drop(&mut self.val.u),
                 Fun => MD::drop(&mut self.val.o),
                 Tup => MD::drop(&mut self.val.t),
+                Let => MD::drop(&mut self.val.l),
                 _ => (),
             }
         }
@@ -141,6 +149,7 @@ impl fmt::Debug for M {
             }};
         }
         atoms![
+            Let => Rc<Let>,
             Int => I, Flt => F, Chr => C, Sym => &'static str,
             INT => A<I>, FLT => A<F>, CHR => A<C>, SYM => A<&'static str>,
             Dyd => Rc<Dyd>, Mon => Rc<Mon>,
@@ -167,6 +176,7 @@ impl PartialEq<M> for M {
         }
         atoms![
             Nil => (),
+            Let => Rc<Let>,
             Int => I, Flt => F, Chr => C, Sym => &'static str,
             INT => A<I>, FLT => A<F>, CHR => A<C>, SYM => A<&'static str>,
             Dyd => Rc<Dyd>, Mon => Rc<Mon>,
@@ -274,6 +284,7 @@ M_to_impls_md![
     Mon => Rc<Mon> => u,
     Fun => Rc<Fun> => o,
     Tup => Rc<Tup> => t,
+    Let => Rc<Let> => l,
 ];
 
 macro_rules! M_to_impls_vecs {
@@ -306,6 +317,7 @@ M_to_impls_vecs![
     INT => I => I,
     FLT => F => F,
     CHR => C => C,
+    SYM => &'static str => S,
 ];
 
 impl To<M> for &M {

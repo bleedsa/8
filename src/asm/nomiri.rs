@@ -1,8 +1,9 @@
 use crate::{asm::Asm, pre::*};
+use asm_rs::Arch;
 
 #[test]
 fn map_exec_fun0() -> R<()> {
-    let asm = Asm::new();
+    let asm = Asm::new(Arch::X86_64);
     let asm = asm.emit_fun::<0, _, _>(
         "fun0",
         "
@@ -22,7 +23,7 @@ fn map_exec_fun0() -> R<()> {
 
 #[test]
 fn map_exec_fun1() -> R<()> {
-    let asm = Asm::new();
+    let asm = Asm::new(Arch::X86_64);
     let asm = asm.emit_fun::<1, _, _>(
         "inc",
         "
@@ -42,7 +43,7 @@ fn map_exec_fun1() -> R<()> {
 
 #[test]
 fn map_exec_fun2() -> R<()> {
-    let asm = Asm::new();
+    let asm = Asm::new(Arch::X86_64);
     let asm = asm.emit_fun::<2, _, _>(
         "add",
         "

@@ -1,3 +1,6 @@
+/*!
+ * jit assembler compiler
+ */
 use crate::M::M;
 use std::{error::Error, fmt};
 

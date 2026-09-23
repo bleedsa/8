@@ -10,7 +10,7 @@ use crate::{
     mem::{mmap_exec, munmap},
     pre::*,
 };
-use std::ptr::NonNull;
+use std::{fmt, ptr::NonNull};
 
 pub mod err;
 
@@ -64,13 +64,15 @@ impl AsmDefine for F {
 }
 
 pub struct Asm {
+    pub arch: Arch,
     pub asm: Assembler,
 }
 
 impl Asm {
-    pub fn new() -> Self {
+    pub fn new(arch: Arch) -> Self {
         Self {
-            asm: Assembler::new(Arch::X86_64),
+            arch,
+            asm: Assembler::new(arch),
         }
     }
 
@@ -121,6 +123,18 @@ impl Asm {
         }
 
         Ok(ExePage::new(map, res))
+    }
+}
+
+impl fmt::Debug for Asm {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{{ASM???}}")
+    }
+}
+
+impl PartialEq for Asm {
+    fn eq(&self, _: &Self) -> bool {
+        true
     }
 }
 

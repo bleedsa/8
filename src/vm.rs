@@ -2,8 +2,8 @@
  * executable virtual machine
  */
 
-use crate::{M::MTy, asm::ExePage};
-use std::rc::Rc;
+use crate::{M::MTy, asm::ExePage, modules::Mod};
+use std::{collections::HashMap, rc::Rc};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct FunPtr<'m> {
@@ -17,6 +17,8 @@ pub struct VM<'m> {
     pub pages: Vec<Rc<ExePage>>,
     /** array of compiled functions */
     pub funs: Vec<FunPtr<'m>>,
+    /** modules */
+    pub mods: HashMap<&'static str, Mod<'m>>,
 }
 
 impl<'m> VM<'m> {
@@ -24,6 +26,7 @@ impl<'m> VM<'m> {
         Self {
             pages: Vec::new(),
             funs: Vec::new(),
+            mods: HashMap::new(),
         }
     }
 
@@ -36,12 +39,12 @@ impl<'m> VM<'m> {
 
 #[macro_export]
 macro_rules! mkasmfuns {
-    ($vm:expr => [
+    ($vm:expr, $arch:expr => [
         $(fn $i:ident($($t:ty),*) -> $r:ty => $s:expr;)*
     ]) => {{
         $crate::mkasmfuns!($vm => [
             $(
-                fn $i[Asm::new()]($($t),*) -> $r
+                fn $i[Asm::new($arch)]($($t),*) -> $r
                 => $s;
             )*
         ])
@@ -79,12 +82,13 @@ macro_rules! mkasmfuns {
 mod nomiri {
     use super::*;
     use crate::pre::*;
+    use asm_rs::Arch;
 
     #[test]
     fn basic_asm_fun() -> R<()> {
         let mut vm = VM::new();
 
-        let add = mkasmfuns!(vm => [
+        let add = mkasmfuns!(vm, Arch::X86_64 => [
             fn add(I, I) -> I =>
                 "
                 mov eax, edi
@@ -102,7 +106,7 @@ mod nomiri {
     fn eval_add_F() -> R<()> {
         let mut vm = VM::new();
 
-        let add = mkasmfuns!(vm => [
+        let add = mkasmfuns!(vm, Arch::X86_64 => [
             fn add(F, F) -> F =>
                 "
                 addsd xmm0, xmm1
@@ -121,7 +125,7 @@ mod nomiri {
     fn eval_add_M() -> R<()> {
         let mut vm = VM::new();
 
-        let add_m = mkasmfuns!(vm => [
+        let add_m = mkasmfuns!(vm, Arch::X86_64 => [
             fn add(M, M) -> I
             => asm, (x=>x), (y=>y)
             => {

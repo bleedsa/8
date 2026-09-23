@@ -1,9 +1,5 @@
 /*!
- * type class type checker.
- *
- * [typechecker zoo](
- *  https://sdiehl.github.io/typechecker-zoo/type-classes/implementation.html
- * )
+ * type checker.
  */
 
 use crate::{
@@ -16,7 +12,6 @@ use crate::{
 use std::{collections::HashMap, rc::Rc, sync::LazyLock};
 
 pub mod err;
-pub mod name;
 
 /** the repr for a type in the type system */
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -39,21 +34,25 @@ macro_rules! verb_sigs {
     ($e:ident: ($q:ty, $($t:ty),*$(,)*)
      = [$($v:expr, $($a:expr),* => $r:expr),*$(,)*]
     ) => {
-        #[allow(unused)]
-        use MTy::*;
-        #[allow(unused)]
-        use Typ::*;
-        #[allow(unused)]
-        use Mons::*;
-        #[allow(unused)]
-        use Dyds::*;
-        static $e: LazyLock<HashMap<($q, $(&'static $t),*), &Typ>> =
+        static $e: LazyLock<HashMap<($q, $($t),*), Typ>> =
             LazyLock::new(|| {
-                [$((($v, $(intern::typ::add($a)),*), intern::typ::add($r))),*].into()
+                #[allow(unused)]
+                use MTy::*;
+                #[allow(unused)]
+                use Typ::*;
+                #[allow(unused)]
+                use Mons::*;
+                #[allow(unused)]
+                use Dyds::*;
+
+                [
+                    $((($v, $($a),*), $r)),*
+                ].into()
             });
     };
 }
 
+/* dyadic verb type signatures */
 verb_sigs!(DYD_SIGS: (Dyds, Typ, Typ) = [
     /* + */
     Add,Atom(Int),Atom(Int)=>Atom(Int),
@@ -61,66 +60,97 @@ verb_sigs!(DYD_SIGS: (Dyds, Typ, Typ) = [
     Add,Atom(Flt),Atom(Int)=>Atom(Flt),
     Add,Atom(Flt),Atom(Flt)=>Atom(Flt),
 ]);
+
+/* monadic verb type signatures */
 verb_sigs!(MON_SIGS: (Mons, Typ) = [
     Iota,Atom(Int)=>Atom(INT),
 ]);
 
-pub fn typ_of(m: Rc<M>) -> R<&'static Typ> {
-    Ok(intern::typ::add(match m.ty {
-        t @ (MTy::Int
-        | MTy::Flt
-        | MTy::Chr
-        | MTy::INT
-        | MTy::FLT
-        | MTy::CHR) => Typ::Atom(t),
+#[derive(Default)]
+pub struct TypChk {
+    pub binds: HashMap<Name, Typ>,
+}
 
-        MTy::Dyd => unsafe {
-            /* snag */
-            let v = m.val.v.v;
-            let x = m.val.v.x.clone();
-            let y = m.val.v.y.clone();
+impl TypChk {
+    pub fn gets(&mut self, x: Rc<M>, y: Rc<M>) -> R<&'static Typ> {
+        let x: &str = x.to().to();
+        let t = self.typ_of(y)?;
+        self.binds.insert(Name::Named(x), *t);
+        Ok(t)
+    }
 
-            /* project */
-            if x.is_none() {
-                todo!()
-            }
-            if y.is_none() {
-                todo!()
-            }
+    pub fn typ_of(&mut self, m: Rc<M>) -> R<&'static Typ> {
+        Ok(intern::typ::add(match m.ty {
+            t @ (MTy::Int
+            | MTy::Flt
+            | MTy::Chr
+            | MTy::INT
+            | MTy::FLT
+            | MTy::CHR
+            | MTy::Sym
+            | MTy::SYM) => Typ::Atom(t),
 
-            /* typeof each */
-            let x = typ_of(x.unwrap_unchecked())?;
-            let y = typ_of(y.unwrap_unchecked())?;
+            MTy::Dyd => unsafe {
+                /* snag */
+                let v = m.val.v.v;
+                let x = m.val.v.x.clone();
+                let y = m.val.v.y.clone();
 
-            /* fetch overload return type */
-            *(*DYD_SIGS)
-                .get(&(v, x, y))
-                .copied()
-                .ok_or(Box::new(TypErr::DydNyi(v, *x, *y)))?
-        },
+                /* project */
+                if x.is_none() {
+                    todo!()
+                }
+                if y.is_none() {
+                    todo!()
+                }
 
-        MTy::Mon => unsafe {
-            /* snag */
-            let v = m.val.u.v;
-            let x = m.val.u.x.clone();
+                let x = x.unwrap_unchecked();
+                let y = y.unwrap_unchecked();
 
-            /* project */
-            if x.is_none() {
-                todo!()
-            }
+                /* special cases (gets etc) */
+                match v {
+                    Dyds::Gets => return self.gets(x, y),
+                    _ => ()
+                };
 
-            /* typeof arg */
-            let x = typ_of(x.unwrap_unchecked())?;
+                /* typeof each */
+                let x = *self.typ_of(x)?;
+                let y = *self.typ_of(y)?;
 
-            /* fetch overload return type */
-            *(*MON_SIGS)
-                .get(&(v, x))
-                .copied()
-                .ok_or(Box::new(TypErr::MonNyi(v, *x)))?
-        },
+                /* fetch overload return type */
+                let f = (*DYD_SIGS)
+                    .get(&(v, x, y))
+                    .copied()
+                    .ok_or(Box::new(TypErr::DydNyi(v, x, y)))?;
 
-        t => err_typ!(Nyi(t))?,
-    }))
+                f
+            },
+
+            MTy::Mon => unsafe {
+                /* snag */
+                let v = m.val.u.v;
+                let x = m.val.u.x.clone();
+
+                /* project */
+                if x.is_none() {
+                    todo!()
+                }
+
+                /* typeof arg */
+                let x = *self.typ_of(x.unwrap_unchecked())?;
+
+                /* fetch overload return type */
+                let f = (*MON_SIGS)
+                    .get(&(v, x))
+                    .copied()
+                    .ok_or(Box::new(TypErr::MonNyi(v, x)))?;
+
+                f
+            },
+
+            t => err_typ!(Nyi(t))?,
+        }))
+    }
 }
 
 #[cfg(test)]
@@ -135,20 +165,33 @@ mod test {
 
     #[test]
     fn typ_of_dyds() {
-        let v: Rc<M> = V!(Dyds::Add, 123, 456).into();
-        let t = typ_of(v).unwrap();
+        let mut H = TypChk::default();
+        let v: Rc<M> = V!(Dyds::Add, Some(123), Some(456)).into();
+        let t = H.typ_of(v).unwrap();
         assert_eq!(t, &Typ::Atom(MTy::Int));
 
-        let x: Rc<M> = V!(Dyds::Add, 123, 456);
-        let v: Rc<M> = V!(Dyds::Add, x, 789);
-        let y = typ_of(v).unwrap();
+        let x: Rc<M> = V!(Dyds::Add, Some(123), Some(456));
+        let v: Rc<M> = V!(Dyds::Add, Some(x), Some(789));
+        let t = H.typ_of(v).unwrap();
         assert_eq!(t, &Typ::Atom(MTy::Int));
     }
 
     #[test]
     fn typ_of_mons() {
-        let v: Rc<M> = U!(Mons::Iota, 10).into();
-        let t = typ_of(v).unwrap();
-        assert_eq!(t, &Typ::Atom(INT));
+        let mut H = TypChk::default();
+        let v: Rc<M> = U!(Mons::Iota, Some(10)).into();
+        let t = H.typ_of(v).unwrap();
+        assert_eq!(t, &Typ::Atom(MTy::INT));
+    }
+
+    #[test]
+    fn simple_gets() -> R<()> {
+        let mut H = TypChk::default();
+        let v: Rc<M> = V!(Dyds::Gets, Some("a"), Some(10)).into();
+        let t = H.typ_of(v).unwrap();
+
+        assert_eq!(t, &Typ::Atom(MTy::Int));
+
+        Ok(())
     }
 }

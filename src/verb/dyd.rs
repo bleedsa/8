@@ -55,6 +55,7 @@ enum_jmps! {
         Mul,
         Div,
         App,
+        Gets,
     }
 
     static EVAL_DYDS: fn(Rc<M>, Rc<M>) -> Result<Rc<M>, VerbErr> = [
@@ -63,6 +64,7 @@ enum_jmps! {
         [Mul] = math_dyd!(*),
         [Div] = math_dyd!(/),
         [App] = |_, _| todo!(),
+        [Gets] = |_, _| todo!(),
     ];
 }
 
