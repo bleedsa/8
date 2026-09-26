@@ -77,10 +77,14 @@ pub struct Dyd {
 
 #[macro_export]
 macro_rules! V {
-    ($v:expr, $x:expr, $y:expr) => {{
-        use $crate::{M::M, To, verb::dyd::Dyd};
+    ($v:ident, $x:expr, $y:expr) => {{
+        use $crate::{
+            M::M,
+            To,
+            verb::dyd::{Dyd, Dyds},
+        };
         To::<Rc<M>>::to(Into::<Rc<Dyd>>::into(Dyd {
-            v: $v,
+            v: Dyds::$v,
             x: $x.map(|x| To::<M>::to(x).into()),
             y: $y.map(|y| To::<M>::to(y).into()),
         }))

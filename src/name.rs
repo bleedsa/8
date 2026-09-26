@@ -11,6 +11,7 @@ static TMP_COUNT: Mutex<TmpVal> = Mutex::new(0);
 pub enum Name {
     Tmp(TmpVal),
     Named(&'static str),
+    Path(&'static [&'static str]),
 }
 
 impl Name {
@@ -34,5 +35,16 @@ impl Name {
 
         *G += 1;
         Self::Tmp(v)
+    }
+
+    pub fn path<S>(s: Vec<S>) -> Self
+    where
+        S: ToString,
+    {
+        let v: Vec<&'static str> = s
+            .into_iter()
+            .map(|s| intern::str::add(s.to_string()).as_ref())
+            .collect();
+        Self::Path(intern::paths::add(v))
     }
 }

@@ -20,22 +20,22 @@ pub mod enums;
 pub mod fun;
 pub mod intern;
 pub mod mem;
+pub mod modules;
+pub mod name;
 pub mod simd;
 pub mod tup;
 pub mod typ;
 pub mod verb;
 pub mod vm;
-pub mod name;
-pub mod modules;
 
 /** prelude */
 pub mod pre {
     pub use crate::{
         C, E, F, I,
-        name::Name,
         M::err::MErr,
         Pos, R, To, err_cmp, err_verb, fatal, fun,
         mem::memcpy,
+        name::Name,
         simd::{xmm_t, ymm_t},
     };
 }

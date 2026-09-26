@@ -7,7 +7,7 @@ use crate::{
     err_typ, intern,
     pre::*,
     typ::err::TypErr,
-    verb::{dyd::Dyds, mon::Mons},
+    verb::{mon::Mons, dyd::Dyds},
 };
 use std::{collections::HashMap, rc::Rc, sync::LazyLock};
 
@@ -37,13 +37,13 @@ macro_rules! verb_sigs {
         static $e: LazyLock<HashMap<($q, $($t),*), Typ>> =
             LazyLock::new(|| {
                 #[allow(unused)]
-                use MTy::*;
+                use $crate::M::MTy::*;
                 #[allow(unused)]
-                use Typ::*;
+                use $crate::typ::Typ::*;
                 #[allow(unused)]
-                use Mons::*;
+                use $crate::verb::mon::Mons::*;
                 #[allow(unused)]
-                use Dyds::*;
+                use $crate::verb::dyd::Dyds::*;
 
                 [
                     $((($v, $($a),*), $r)),*
@@ -66,12 +66,16 @@ verb_sigs!(MON_SIGS: (Mons, Typ) = [
     Iota,Atom(Int)=>Atom(INT),
 ]);
 
-#[derive(Default)]
+#[derive(Default, Clone, PartialEq)]
 pub struct TypChk {
     pub binds: HashMap<Name, Typ>,
 }
 
 impl TypChk {
+    pub fn bind(&mut self, n: Name, t: Typ) {
+        self.binds.insert(n, t);
+    }
+
     pub fn gets(&mut self, x: Rc<M>, y: Rc<M>) -> R<&'static Typ> {
         let x: &str = x.to().to();
         let t = self.typ_of(y)?;
@@ -110,7 +114,7 @@ impl TypChk {
                 /* special cases (gets etc) */
                 match v {
                     Dyds::Gets => return self.gets(x, y),
-                    _ => ()
+                    _ => (),
                 };
 
                 /* typeof each */
@@ -159,19 +163,17 @@ mod test {
     use crate::{
         M::{M, MTy},
         U, V,
-        verb::dyd::Dyds,
-        verb::mon::Mons,
     };
 
     #[test]
     fn typ_of_dyds() {
         let mut H = TypChk::default();
-        let v: Rc<M> = V!(Dyds::Add, Some(123), Some(456)).into();
+        let v: Rc<M> = V!(Add, Some(123), Some(456)).into();
         let t = H.typ_of(v).unwrap();
         assert_eq!(t, &Typ::Atom(MTy::Int));
 
-        let x: Rc<M> = V!(Dyds::Add, Some(123), Some(456));
-        let v: Rc<M> = V!(Dyds::Add, Some(x), Some(789));
+        let x: Rc<M> = V!(Add, Some(123), Some(456));
+        let v: Rc<M> = V!(Add, Some(x), Some(789));
         let t = H.typ_of(v).unwrap();
         assert_eq!(t, &Typ::Atom(MTy::Int));
     }
@@ -187,7 +189,7 @@ mod test {
     #[test]
     fn simple_gets() -> R<()> {
         let mut H = TypChk::default();
-        let v: Rc<M> = V!(Dyds::Gets, Some("a"), Some(10)).into();
+        let v: Rc<M> = V!(Gets, Some("a"), Some(10)).into();
         let t = H.typ_of(v).unwrap();
 
         assert_eq!(t, &Typ::Atom(MTy::Int));

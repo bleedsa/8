@@ -13,7 +13,7 @@ use std::{
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct A<X>(pub Rc<[X]>)
 where
-    X: Clone + Debug + PartialEq;
+    X: Clone + PartialEq;
 
 impl<X> A<X>
 where
@@ -26,7 +26,7 @@ where
 
 impl<X> To<A<X>> for Vec<X>
 where
-    X: Clone + Debug + PartialEq,
+    X: Clone + PartialEq,
 {
     fn to(self) -> A<X> {
         A(self.into())
@@ -35,7 +35,7 @@ where
 
 impl<X> To<Vec<X>> for A<X>
 where
-    X: Clone + Debug + PartialEq,
+    X: Clone + PartialEq,
 {
     fn to(self) -> Vec<X> {
         (&*self.0).into()
@@ -44,7 +44,7 @@ where
 
 impl<X> To<A<X>> for &[X]
 where
-    X: Clone + Debug + PartialEq,
+    X: Clone + PartialEq,
 {
     fn to(self) -> A<X> {
         A(self.into())
@@ -53,7 +53,7 @@ where
 
 impl<X> Index<usize> for A<X>
 where
-    X: Clone + Debug + PartialEq,
+    X: Clone + PartialEq,
 {
     type Output = X;
 
@@ -65,7 +65,7 @@ where
 
 impl<X> Hash for A<X>
 where
-    X: Clone + Debug + PartialEq + Hash,
+    X: Clone + PartialEq + Hash,
 {
     fn hash<H>(&self, s: &mut H)
     where

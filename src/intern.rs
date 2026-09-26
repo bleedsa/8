@@ -178,4 +178,5 @@ macro_rules! SIntern_mods {
 SIntern_mods![
     static str: String;
     static typ: Typ;
+    static paths: Vec<&'static str>;
 ];

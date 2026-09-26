@@ -2,10 +2,21 @@
  * compiled module structures and functions.
  */
 
-use std::{rc::Rc, collections::HashMap};
-use crate::{pre::*, cmp::CmpFun};
+use crate::{M::M, cmp::CmpFun, pre::*};
+use std::{collections::HashMap, rc::Rc};
 
 #[derive(Default, Clone)]
-pub struct Mod<'m> {
-    pub funs: HashMap<Name, Rc<CmpFun<'m>>>,
+pub struct Mod {
+    pub funs: HashMap<Name, Rc<CmpFun>>,
+    pub binds: HashMap<Name, Rc<M>>,
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn new_module() -> R<()> {
+        Ok(())
+    }
 }

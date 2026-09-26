@@ -18,7 +18,7 @@ pub struct VM<'m> {
     /** array of compiled functions */
     pub funs: Vec<FunPtr<'m>>,
     /** modules */
-    pub mods: HashMap<&'static str, Mod<'m>>,
+    pub mods: HashMap<&'static str, Mod>,
 }
 
 impl<'m> VM<'m> {

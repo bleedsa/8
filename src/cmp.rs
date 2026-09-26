@@ -2,57 +2,71 @@
  * jit compilation
  */
 
-use crate::{M::{M, MTy}, pre::*, vm::VM, typ::{Typ, TypChk}, asm::Asm};
-use std::{hint::likely, rc::Rc};
+use asm_rs::Arch;
+use crate::{
+    A::A,
+    asm::Asm,
+    fun::{Arg, Fun},
+    pre::*,
+    typ::{Typ, TypChk},
+    vm::VM,
+};
+use std::rc::Rc;
 
 pub mod err;
 
-type Tape<'m> = &'m [Rc<M>];
+#[derive(PartialEq)]
+pub struct CmpVar {
+    typ: Typ,
+}
 
 #[derive(PartialEq)]
-pub struct CmpFun<'m> {
-    pub args: &'m [MTy],
-    pub ret: MTy,
+pub struct CmpFun {
+    pub args: A<Arg>,
+    pub ret: Typ,
     pub asm: Asm,
+    pub tych: TypChk,
 }
 
 pub struct Cmp<'m> {
     pub vm: &'m mut VM<'m>,
-    pub tape: Tape<'m>,
     pub i: usize,
     pub tych: TypChk,
-}
-
-impl<'m> Iterator for Cmp<'m> {
-    type Item = Rc<M>;
-
-    #[inline(always)]
-    fn next(&mut self) -> Option<Self::Item> {
-        let i = self.i;
-        let t = self.tape;
-        if likely(i < t.len()) {
-            self.i += 1;
-            Some(t[i].clone())
-        } else {
-            None
-        }
-    }
+    pub arch: Arch,
 }
 
 impl<'m> Cmp<'m> {
     #[inline(always)]
-    pub fn new(vm: &'m mut VM<'m>, tape: Tape<'m>) -> Self {
-        Self { vm, tape, i: 0, tych: TypChk::default() }
+    pub fn new(vm: &'m mut VM<'m>, arch: Arch) -> Self {
+        Self {
+            vm,
+            i: 0,
+            tych: TypChk::default(),
+            arch,
+        }
     }
 
-    pub fn cmp(&mut self) -> R<()> {
-        for m in &mut *self {
-            match self.tych.typ_of(m.clone())? {
-                Typ::Atom(MTy::Int) => todo!(),
-                _ => return err_cmp!(CantCmpTy((*m).clone())),
-            }
+    pub fn fun(&mut self, fun: Rc<Fun>) -> R<CmpFun> {
+        /* new CmpFun */
+        let mut f = CmpFun {
+            args: fun.args.clone(),
+            ret: fun.ret,
+            asm: Asm::new(self.arch),
+            tych: self.tych.clone(),
+        };
+
+        /* bind args */
+        for Arg(n, t) in f.args.iter() {
+            f.tych.bind(*n, *t);
         }
 
-        Ok(())
+        Ok(f)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn new_CmpFun() {
     }
 }
